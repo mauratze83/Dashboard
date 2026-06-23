@@ -532,7 +532,20 @@ body.drag-active::after {
         <div class="card-title">Management Summary</div>
         <div class="card-sub" id="wowSummaryMeta">KI-generierte Analyse des Wochenvergleichs</div>
       </div>
-      <button class="btn primary" id="wowSummaryBtn" onclick="generateWowSummary()">✦ Analyse generieren</button>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <div id="apiKeySection" style="display:flex; align-items:center; gap:6px;">
+          <input type="password" id="apiKeyInput" placeholder="sk-ant-… API Key eingeben"
+            style="width:220px; font-family:var(--mono); font-size:11px;"
+            onkeydown="if(event.key==='Enter') saveApiKey()"
+          >
+          <button class="btn" onclick="saveApiKey()" style="white-space:nowrap;">Speichern</button>
+        </div>
+        <div id="apiKeySet" style="display:none; align-items:center; gap:6px;">
+          <span style="font-size:11px; color:var(--green); font-family:var(--mono);">✓ Key gesetzt</span>
+          <button class="btn" onclick="clearApiKey()" style="font-size:10px; padding:3px 8px;">×</button>
+        </div>
+        <button class="btn primary" id="wowSummaryBtn" onclick="generateWowSummary()">✦ Analyse generieren</button>
+      </div>
     </div>
     <div id="wowSummaryContent" style="display:none">
       <div id="wowSummaryText" style="
@@ -1299,10 +1312,43 @@ function renderWow() {
   }).join('');
 }
 
+/* ═══════════════════ API KEY MANAGEMENT ═══════════════════ */
+let _sessionApiKey = '';
+
+function saveApiKey() {
+  const val = document.getElementById('apiKeyInput').value.trim();
+  if (!val.startsWith('sk-ant-')) {
+    document.getElementById('apiKeyInput').style.borderColor = 'var(--red)';
+    document.getElementById('apiKeyInput').placeholder = 'Ungültig — muss mit sk-ant- beginnen';
+    return;
+  }
+  _sessionApiKey = val;
+  document.getElementById('apiKeyInput').value = '';
+  document.getElementById('apiKeyInput').style.borderColor = '';
+  document.getElementById('apiKeySection').style.display = 'none';
+  document.getElementById('apiKeySet').style.display = 'flex';
+}
+
+function clearApiKey() {
+  _sessionApiKey = '';
+  document.getElementById('apiKeySet').style.display = 'none';
+  document.getElementById('apiKeySection').style.display = 'flex';
+  document.getElementById('apiKeyInput').placeholder = 'sk-ant-… API Key eingeben';
+}
+
 /* ═══════════════════ WoW MGMT SUMMARY (Claude API) ═══════════════════ */
 let summaryAbort = null;
 
 async function generateWowSummary() {
+  if (!_sessionApiKey) {
+    // Flash the key input to signal it's needed
+    const inp = document.getElementById('apiKeyInput');
+    inp.style.borderColor = 'var(--amber)';
+    inp.placeholder = '⚠ Bitte zuerst API Key eingeben';
+    inp.focus();
+    return;
+  }
+
   const btn = document.getElementById('wowSummaryBtn');
   btn.disabled = true;
   btn.textContent = '✦ Wird generiert…';
@@ -1365,7 +1411,12 @@ Sei präzise, nutze konkrete Zahlen aus den Daten. Keine allgemeinen Floskeln. M
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': _sessionApiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
         max_tokens: 1000,
