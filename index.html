@@ -4,7 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Chatbot Performance Dashboard</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
@@ -227,6 +228,184 @@ canvas.spark { display: block; }
   .kpi-row { grid-template-columns: 1fr 1fr; }
   .grid2, .grid3 { grid-template-columns: 1fr; }
   .wow-summary { grid-template-columns: 1fr 1fr; }
+}
+
+/* ══════════════════════════════════════
+   RESPONSIVE — TABLET  (≤768px)
+══════════════════════════════════════ */
+@media (max-width: 768px) {
+  html { font-size: 13px; }
+
+  /* Header: hide meta text, tighten padding */
+  header { padding: 0 14px; height: 48px; gap: 8px; }
+  .header-meta { display: none; }
+  .logo { font-size: 13px; gap: 7px; }
+  .cr-badge { font-size: 11px; padding: 3px 9px; }
+  .upload-btn { font-size: 11px; padding: 5px 10px; }
+  .export-btn { display: none; } /* show only in page header on mobile */
+
+  /* Nav: horizontally scrollable pill row */
+  nav {
+    padding: 0 10px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    gap: 0;
+  }
+  nav::-webkit-scrollbar { display: none; }
+  .nav-tab { padding: 10px 13px; font-size: 11px; white-space: nowrap; flex-shrink: 0; }
+
+  /* Time filter: collapse */
+  #timeFilterBar { padding: 6px 14px; gap: 6px; top: 48px; }
+  .tf-sep { display: none; }
+  #timeFilterBar select { font-size: 10px; padding: 3px 6px; }
+  .tf-label { display: none; }
+  .tf-range-info { font-size: 10px; }
+
+  /* Main */
+  main { padding: 14px 12px; }
+
+  /* KPIs: 2 col */
+  .kpi-row { grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+  .kpi { padding: 12px 14px; }
+  .kpi-value { font-size: 20px; }
+  .kpi-label { font-size: 9px; margin-bottom: 5px; }
+
+  /* Cards */
+  .card { padding: 14px 14px; margin-bottom: 12px; }
+  .card-head { flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  .card-title { font-size: 12px; }
+
+  /* Charts: shorter on mobile */
+  .h240 { height: 200px; }
+  .h280 { height: 220px; }
+  .h320 { height: 240px; }
+  .h220 { height: 180px; }
+
+  /* Grids: single column */
+  .grid2, .grid3 { grid-template-columns: 1fr; gap: 12px; }
+  .wow-summary   { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .cluster-grid  { grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  /* Tables: horizontal scroll, hide less important columns */
+  .intent-table-wrap, .wow-table-wrap { border-radius: 6px; }
+  table { font-size: 11px; }
+  th, td { padding: 7px 10px; }
+  td.intent-name { max-width: 140px; font-size: 11px; }
+  .cr-bar-bg { min-width: 40px; }
+
+  /* Filters: wrap tighter */
+  .filters { gap: 7px; }
+  .btn { padding: 5px 9px; font-size: 11px; }
+  select { font-size: 11px; padding: 5px 8px; }
+
+  /* WoW week picker */
+  #wowWeekPicker { gap: 5px; }
+  #wowWeekPicker select { font-size: 10px; }
+
+  /* Anomaly list */
+  .anomaly-item { flex-wrap: wrap; gap: 6px; padding: 8px 10px; }
+  .anomaly-intent { min-width: 0; font-size: 11px; }
+  .anomaly-desc { font-size: 10px; width: 100%; }
+  .anomaly-val { margin-left: 0; }
+  .anomaly-week { min-width: 30px; }
+
+  /* Summary card */
+  #wowSummaryCard .card-head { flex-direction: column; align-items: flex-start; gap: 10px; }
+  #wowSummaryCard .card-head > div:last-child { width: 100%; }
+  #apiKeySection { flex-wrap: wrap; }
+  #apiKeyInput { width: 100% !important; }
+
+  /* Upload overlay */
+  #uploadOverlay > div { padding: 24px 20px; min-width: 0; width: 85vw; }
+
+  /* Toast */
+  .toast-bar { font-size: 12px; padding: 9px 16px; left: 12px; right: 12px; transform: translateY(60px); width: auto; }
+  .toast-bar.show { transform: translateY(0); }
+
+  /* Cluster cards */
+  .cluster-card { padding: 12px 14px; }
+  .cluster-cr { font-size: 16px; }
+}
+
+/* ══════════════════════════════════════
+   RESPONSIVE — MOBILE  (≤480px)
+══════════════════════════════════════ */
+@media (max-width: 480px) {
+  html { font-size: 12px; }
+
+  header { padding: 0 10px; height: 44px; }
+  .logo span { display: none; } /* hide text, keep pip + "Dashboard" */
+  .theme-toggle { width: 26px; height: 14px; }
+  .theme-toggle::after { width: 10px; height: 10px; }
+  body.light .theme-toggle::after { transform: translateX(12px); }
+
+  /* Sticky offsets */
+  #timeFilterBar { top: 44px; }
+
+  main { padding: 10px 10px; }
+
+  /* KPIs: 2 column compact */
+  .kpi-row { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .kpi { padding: 10px 11px; border-radius: 8px; }
+  .kpi-value { font-size: 18px; }
+  .kpi-sub, .kpi-delta { font-size: 9px; }
+
+  /* Charts even shorter */
+  .h240 { height: 170px; }
+  .h280 { height: 180px; }
+  .h320 { height: 190px; }
+  .h220 { height: 160px; }
+
+  /* Grids always single col */
+  .wow-summary   { grid-template-columns: 1fr 1fr; }
+  .cluster-grid  { grid-template-columns: 1fr; }
+
+  /* Tables: hide signal and CR-Shift on WoW table, keep essentials */
+  .wow-table-wrap th:nth-child(4),
+  .wow-table-wrap td:nth-child(4) { display: none; } /* vol shift — shown as pill */
+  .wow-table-wrap th:nth-child(8),
+  .wow-table-wrap td:nth-child(8) { display: none; } /* signal col */
+
+  /* Filters: smaller */
+  .filters { gap: 5px; }
+  .filter-label { display: none; }
+  .btn { padding: 5px 8px; font-size: 10px; }
+
+  /* Time filter: show only presets + range info */
+  #timeFilterBar .tf-sep, 
+  #timeFilterBar > .tf-label { display: none; }
+
+  /* Nav: even more compact */
+  .nav-tab { padding: 8px 11px; font-size: 10px; }
+
+  /* Card padding */
+  .card { padding: 12px 12px; border-radius: 8px; }
+  .card-head { margin-bottom: 10px; }
+  .card-title { font-size: 11px; }
+
+  /* WoW summary: stack */
+  .wow-summary { grid-template-columns: 1fr 1fr; gap: 8px; }
+
+  /* Anomalies: simplify */
+  .anomaly-item { padding: 7px 8px; }
+  .anomaly-desc { display: none; } /* hide description, show just intent + val */
+
+  /* Pill: smaller */
+  .pill { font-size: 10px; padding: 1px 6px; }
+
+  /* Summary API key area */
+  #wowSummaryCard .card-head > div:last-child { flex-direction: column; gap: 8px; }
+  #wowSummaryBtn { width: 100%; justify-content: center; }
+}
+
+/* Touch targets: minimum 44px for all interactive elements on mobile */
+@media (max-width: 768px) {
+  .nav-tab, .btn, .tf-btn, .upload-btn, select, input[type=password] {
+    min-height: 36px;
+  }
+  tr[onclick] td { padding-top: 10px; padding-bottom: 10px; } /* larger tap rows */
+  .theme-toggle { min-height: 0; } /* toggle is fine as-is */
 }
 /* UPLOAD BUTTON */
 .upload-btn {
@@ -805,7 +984,7 @@ function getFD() {
     }
   });
 
-  const top10_names = [...intent_totals].sort((a,b) => b.inv - a.inv).slice(0,10).map(d => d.i);
+  const top10_names = Array.from(intent_totals).sort((a,b) => b.inv - a.inv).slice(0,10).map(d => d.i);
 
   return { weeks, weekly_totals: wt, intent_totals, top10_names, intent_weekly_cr };
 }
@@ -877,32 +1056,45 @@ function refreshAllCharts() {
 const ACCENT = '#5b8dee', GREEN = '#30d896', AMBER = '#f5a623', RED = '#f06060';
 const PALETTE10 = ['#5b8dee','#30d896','#f5a623','#8b6cf7','#f06060','#38c4d4','#e87d3e','#a8d672','#d46eb3','#7aadee'];
 
-function baseOpts(extra = {}) {
-  return {
+function baseOpts(extra) {
+  if (extra === undefined) extra = {};
+  var m = window.innerWidth <= 480; // mobile
+  var base = {
     responsive: true, maintainAspectRatio: false,
     animation: { duration: 350 },
     plugins: {
-      legend: { labels: { color: '#7a84a0', font: { family: 'Inter', size: 11 }, boxWidth: 10, padding: 14 } },
+      legend: { labels: { color: '#7a84a0', font: { family: 'Inter', size: m ? 10 : 11 }, boxWidth: 10, padding: m ? 8 : 14 } },
       tooltip: {
         backgroundColor: '#171b27', borderColor: '#303757', borderWidth: 1,
         titleColor: '#e8ebf5', bodyColor: '#7a84a0',
-        titleFont: { family: 'Inter', size: 12, weight: '600' },
-        bodyFont: { family: 'JetBrains Mono', size: 11 }, padding: 10,
+        titleFont: { family: 'Inter', size: m ? 11 : 12, weight: '600' },
+        bodyFont: { family: 'JetBrains Mono', size: m ? 10 : 11 }, padding: 10,
       }
     },
     scales: {
-      x: { ticks: { color: '#3d4460', font: { family: 'Inter', size: 10 }, maxRotation: 45 }, grid: { color: '#1c2035' }, border: { color: '#232840' } },
-      y: { ticks: { color: '#3d4460', font: { family: 'JetBrains Mono', size: 10 } }, grid: { color: '#1c2035' }, border: { color: '#232840' } }
-    },
-    ...extra
+      x: { ticks: { color: '#3d4460', font: { family: 'Inter', size: m ? 9 : 10 }, maxRotation: 45, maxTicksLimit: m ? 6 : 20 }, grid: { color: '#1c2035' }, border: { color: '#232840' } },
+      y: { ticks: { color: '#3d4460', font: { family: 'JetBrains Mono', size: m ? 9 : 10 }, maxTicksLimit: m ? 5 : 8 }, grid: { color: '#1c2035' }, border: { color: '#232840' } }
+    }
   };
+  return Object.assign(base, extra);
 }
 
-function lineDs(label, data, color, fill=false) {
-  return { label, data, borderColor: color, backgroundColor: color + (fill ? '22' : '00'),
-    pointBackgroundColor: color, pointRadius: 3, pointHoverRadius: 5,
-    borderWidth: 2, tension: 0.35, fill };
+function lineDs(label, data, color, fill) {
+  if (fill === undefined) fill = false;
+  var m = window.innerWidth <= 480;
+  return { label: label, data: data, borderColor: color, backgroundColor: color + (fill ? '22' : '00'),
+    pointBackgroundColor: color, pointRadius: m ? 2 : 3, pointHoverRadius: m ? 4 : 5,
+    borderWidth: 2, tension: 0.35, fill: fill };
 }
+
+/* Redraw charts on orientation change / resize */
+var _resizeTimer;
+window.addEventListener('resize', function() {
+  clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(function() {
+    Object.keys(charts).forEach(function(k) { if (charts[k] && charts[k].resize) charts[k].resize(); });
+  }, 200);
+});
 
 /* ═══════════════════ OVERVIEW ═══════════════════ */
 function renderOverview() {
@@ -930,12 +1122,12 @@ function renderOverview() {
     type: 'line',
     data: { labels, datasets: [lineDs('CR %', wt.map(d => d.cr), GREEN, true)] },
     options: baseOpts({
-      plugins: { ...baseOpts().plugins, legend: { display: false },
-        annotation: {} },
+      plugins: Object.assign({}, baseOpts().plugins, {legend: { display: false },
+        annotation: {}}),
       scales: {
         x: baseOpts().scales.x,
-        y: { ...baseOpts().scales.y, min: 50, max: 70,
-          ticks: { ...baseOpts().scales.y.ticks, callback: v => v + ' %' } }
+        y: Object.assign({}, baseOpts().scales.y, {min: 50, max: 70,
+          ticks: Object.assign({}, baseOpts().scales.y.ticks, {callback: v => v + ' %'})})
       }
     })
   });
@@ -951,12 +1143,12 @@ function renderOverview() {
       ]
     },
     options: baseOpts({ scales: {
-      x: { ...baseOpts().scales.x, stacked: false },
-      y: { ...baseOpts().scales.y, ticks: { ...baseOpts().scales.y.ticks, callback: v => (v/1000).toFixed(0)+'K' } }
+      x: Object.assign({}, baseOpts().scales.x, {stacked: false}),
+      y: Object.assign({}, baseOpts().scales.y, {ticks: Object.assign({}, baseOpts().scales.y.ticks, {callback: v => (v/1000).toFixed(0)+'K'})})
     }})
   });
 
-  const top10 = [...fd.intent_totals].sort((a,b) => b.inv - a.inv).slice(0,10);
+  const top10 = Array.from(fd.intent_totals).sort((a,b) => b.inv - a.inv).slice(0,10);
   destroy('ovTop10Bar');
   charts.ovTop10Bar = new Chart(document.getElementById('ovTop10Bar'), {
     type: 'bar',
@@ -971,10 +1163,10 @@ function renderOverview() {
     },
     options: baseOpts({
       indexAxis: 'y',
-      plugins: { ...baseOpts().plugins, legend: { display: false } },
+      plugins: Object.assign({}, baseOpts().plugins, {legend: { display: false }}),
       scales: {
-        x: { ...baseOpts().scales.x, ticks: { ...baseOpts().scales.x.ticks, callback: v => (v/1000).toFixed(0)+'K' } },
-        y: { ...baseOpts().scales.y, ticks: { color: '#7a84a0', font: { family: 'Inter', size: 10 } } }
+        x: Object.assign({}, baseOpts().scales.x, {ticks: Object.assign({}, baseOpts().scales.x.ticks, {callback: v => (v/1000).toFixed(0)+'K'})}),
+        y: Object.assign({}, baseOpts().scales.y, { ticks: { color: '#7a84a0', font: { family: 'Inter', size: 10 } } }}
       }
     })
   });
@@ -998,7 +1190,7 @@ function renderOverview() {
         borderColor:      [RED, AMBER, ACCENT, GREEN, GREEN],
         borderWidth: 1, borderRadius: 4 }]
     },
-    options: baseOpts({ plugins: { ...baseOpts().plugins, legend: { display: false } } })
+    options: baseOpts({ plugins: Object.assign({}, baseOpts().plugins, {legend: { display: false }}) })
   });
 
   detectAnomalies();
@@ -1015,11 +1207,11 @@ function renderTrend() {
     type: 'line',
     data: { labels, datasets: [lineDs('Containment Rate', wt.map(d => d.cr), GREEN, true)] },
     options: baseOpts({
-      plugins: { ...baseOpts().plugins, legend: { display: false } },
+      plugins: Object.assign({}, baseOpts().plugins, {legend: { display: false }}),
       scales: {
         x: baseOpts().scales.x,
-        y: { ...baseOpts().scales.y, min: 52, max: 67,
-          ticks: { ...baseOpts().scales.y.ticks, callback: v => v + ' %' } }
+        y: Object.assign({}, baseOpts().scales.y, {min: 52, max: 67,
+          ticks: Object.assign({}, baseOpts().scales.y.ticks, {callback: v => v + ' %'})})
       }
     })
   });
@@ -1032,8 +1224,8 @@ function renderTrend() {
       backgroundColor: ACCENT + '66', borderColor: ACCENT, borderWidth: 1, borderRadius: 2
     }]},
     options: baseOpts({
-      plugins: { ...baseOpts().plugins, legend: { display: false } },
-      scales: { x: baseOpts().scales.x, y: { ...baseOpts().scales.y, ticks: { ...baseOpts().scales.y.ticks, callback: v => (v/1000).toFixed(0)+'K' } } }
+      plugins: Object.assign({}, baseOpts().plugins, {legend: { display: false }}),
+      scales: { x: baseOpts().scales.x, y: Object.assign({}, baseOpts().scales.y, {ticks: Object.assign({}, baseOpts().scales.y.ticks, {callback: v => (v/1000).toFixed(0)+'K'})}) }
     })
   });
 
@@ -1045,8 +1237,8 @@ function renderTrend() {
       backgroundColor: RED + '66', borderColor: RED, borderWidth: 1, borderRadius: 2
     }]},
     options: baseOpts({
-      plugins: { ...baseOpts().plugins, legend: { display: false } },
-      scales: { x: baseOpts().scales.x, y: { ...baseOpts().scales.y, ticks: { ...baseOpts().scales.y.ticks, callback: v => (v/1000).toFixed(0)+'K' } } }
+      plugins: Object.assign({}, baseOpts().plugins, {legend: { display: false }}),
+      scales: { x: baseOpts().scales.x, y: Object.assign({}, baseOpts().scales.y, {ticks: Object.assign({}, baseOpts().scales.y.ticks, {callback: v => (v/1000).toFixed(0)+'K'})}) }
     })
   });
 
@@ -1065,8 +1257,8 @@ function renderTrend() {
     options: baseOpts({
       scales: {
         x: baseOpts().scales.x,
-        y: { ...baseOpts().scales.y, min: 0, max: 100,
-          ticks: { ...baseOpts().scales.y.ticks, callback: v => v + ' %' } }
+        y: Object.assign({}, baseOpts().scales.y, {min: 0, max: 100,
+          ticks: Object.assign({}, baseOpts().scales.y.ticks, {callback: v => v + ' %'})})
       }
     })
   });
@@ -1107,7 +1299,7 @@ function crBarColor(cr) {
 function openInDetail(intent) {
   populateDetailSelect(intent);
   renderDetail();
-  const detailTab = [...document.querySelectorAll('.nav-tab')].find(t => t.textContent.trim() === 'Intent-Verlauf');
+  const detailTab = Array.from(document.querySelectorAll('.nav-tab')).find(t => t.textContent.trim() === 'Intent-Verlauf');
   showPage('detail', detailTab);
 }
 
@@ -1228,11 +1420,11 @@ function renderDetail() {
     type: 'line',
     data: { labels: wLabels, datasets: [lineDs('CR %', wCR, color, true)] },
     options: baseOpts({
-      plugins: { ...baseOpts().plugins, legend: { display: false } },
+      plugins: Object.assign({}, baseOpts().plugins, {legend: { display: false }}),
       scales: {
         x: baseOpts().scales.x,
-        y: { ...baseOpts().scales.y, min: crMin, max: crMax,
-          ticks: { ...baseOpts().scales.y.ticks, callback: v => v + ' %' } }
+        y: Object.assign({}, baseOpts().scales.y, {min: crMin, max: crMax,
+          ticks: Object.assign({}, baseOpts().scales.y.ticks, {callback: v => v + ' %'})})
       }
     })
   });
@@ -1245,9 +1437,9 @@ function renderDetail() {
       backgroundColor: ACCENT + '77', borderColor: ACCENT, borderWidth: 1, borderRadius: 3
     }]},
     options: baseOpts({
-      plugins: { ...baseOpts().plugins, legend: { display: false } },
+      plugins: Object.assign({}, baseOpts().plugins, {legend: { display: false }}),
       scales: { x: baseOpts().scales.x,
-        y: { ...baseOpts().scales.y, ticks: { ...baseOpts().scales.y.ticks, callback: v => v ? (v/1000).toFixed(1)+'K' : '' } }
+        y: Object.assign({}, baseOpts().scales.y, {ticks: Object.assign({}, baseOpts().scales.y.ticks, {callback: v => v ? (v/1000).toFixed(1)+'K' : ''})})
       }
     })
   });
@@ -1262,9 +1454,9 @@ function renderDetail() {
     ]},
     options: baseOpts({
       scales: {
-        x: { ...baseOpts().scales.x, stacked: true },
-        y: { ...baseOpts().scales.y, stacked: true,
-          ticks: { ...baseOpts().scales.y.ticks, callback: v => v ? (v/1000).toFixed(1)+'K' : '' } }
+        x: Object.assign({}, baseOpts().scales.x, {stacked: true}),
+        y: Object.assign({}, baseOpts().scales.y, {stacked: true,
+          ticks: Object.assign({}, baseOpts().scales.y.ticks, {callback: v => v ? (v/1000).toFixed(1)+'K' : ''})})
       }
     })
   });
@@ -1346,7 +1538,7 @@ function renderWow() {
     </div>`;
 
   // Filter rows for view
-  let rows = [...wowDeduped];
+  let rows = wowDeduped.slice();
   if (wowView === 'vol')  rows = rows.filter(r => Math.abs(r.inv_delta_pct) >= Math.max(volThresh, 1));
   if (wowView === 'cr')   rows = rows.filter(r => Math.abs(r.cr_delta) >= Math.max(crThresh, 1));
   if (wowView === 'warn') rows = rows.filter(r => Math.abs(r.inv_delta_pct) >= 10 || Math.abs(r.cr_delta) >= 5);
@@ -1358,8 +1550,8 @@ function renderWow() {
   rows.sort((a,b) => (Math.abs(b.inv_delta_pct) * 0.5 + Math.abs(b.cr_delta) * 2) - (Math.abs(a.inv_delta_pct) * 0.5 + Math.abs(a.cr_delta) * 2));
 
   // Waterfall charts - top12 by |vol| and top12 by |cr|
-  const byVol = [...wowDeduped].sort((a,b) => Math.abs(b.inv_delta) - Math.abs(a.inv_delta)).slice(0,12);
-  const byCR  = [...wowDeduped].filter(r => r.inv_cur >= 100).sort((a,b) => Math.abs(b.cr_delta) - Math.abs(a.cr_delta)).slice(0,12);
+  const byVol = Array.from(wowDeduped).sort((a,b) => Math.abs(b.inv_delta) - Math.abs(a.inv_delta)).slice(0,12);
+  const byCR  = Array.from(wowDeduped).filter(r => r.inv_cur >= 100).sort((a,b) => Math.abs(b.cr_delta) - Math.abs(a.cr_delta)).slice(0,12);
 
   destroy('wowVolChart');
   charts.wowVolChart = new Chart(document.getElementById('wowVolChart'), {
@@ -1376,14 +1568,14 @@ function renderWow() {
     },
     options: baseOpts({
       indexAxis: 'y',
-      plugins: { ...baseOpts().plugins, legend: { display: false },
-        tooltip: { ...baseOpts().plugins.tooltip, callbacks: {
-          label: ctx => ` Δ ${ctx.raw >= 0 ? '+' : ''}${ctx.raw.toFixed(0)} Anfragen`
-        }}
-      },
+      plugins: Object.assign({}, baseOpts().plugins, { legend: { display: false },
+        tooltip: Object.assign({}, baseOpts().plugins.tooltip, { callbacks: {
+          label: function(ctx) { return ' Δ ' + (ctx.raw >= 0 ? '+' : '') + ctx.raw.toFixed(0) + ' Anfragen'; }
+        }})
+      }),
       scales: {
-        x: { ...baseOpts().scales.x, ticks: { ...baseOpts().scales.x.ticks, callback: v => (v >= 0 ? '+' : '') + (v/1000).toFixed(1)+'K' } },
-        y: { ...baseOpts().scales.y, ticks: { color: '#7a84a0', font: { family: 'Inter', size: 9 } } }
+        x: Object.assign({}, baseOpts().scales.x, {ticks: Object.assign({}, baseOpts().scales.x.ticks, {callback: v => (v >= 0 ? '+' : '') + (v/1000).toFixed(1)+'K'})}),
+        y: Object.assign({}, baseOpts().scales.y, { ticks: { color: '#7a84a0', font: { family: 'Inter', size: 9 } } }}
       }
     })
   });
@@ -1403,14 +1595,14 @@ function renderWow() {
     },
     options: baseOpts({
       indexAxis: 'y',
-      plugins: { ...baseOpts().plugins, legend: { display: false },
-        tooltip: { ...baseOpts().plugins.tooltip, callbacks: {
-          label: ctx => ` Δ ${ctx.raw >= 0 ? '+' : ''}${ctx.raw.toFixed(1)} PP`
-        }}
-      },
+      plugins: Object.assign({}, baseOpts().plugins, { legend: { display: false },
+        tooltip: Object.assign({}, baseOpts().plugins.tooltip, { callbacks: {
+          label: function(ctx) { return ' Δ ' + (ctx.raw >= 0 ? '+' : '') + ctx.raw.toFixed(1) + ' PP'; }
+        }})
+      }),
       scales: {
-        x: { ...baseOpts().scales.x, ticks: { ...baseOpts().scales.x.ticks, callback: v => (v >= 0 ? '+' : '') + v.toFixed(1)+' PP' } },
-        y: { ...baseOpts().scales.y, ticks: { color: '#7a84a0', font: { family: 'Inter', size: 9 } } }
+        x: Object.assign({}, baseOpts().scales.x, {ticks: Object.assign({}, baseOpts().scales.x.ticks, {callback: v => (v >= 0 ? '+' : '') + v.toFixed(1)+' PP'})}),
+        y: Object.assign({}, baseOpts().scales.y, { ticks: { color: '#7a84a0', font: { family: 'Inter', size: 9 } } }}
       }
     })
   });
@@ -1522,8 +1714,8 @@ async function generateWowSummary() {
   const volDeltaPct = totalInvPrev ? ((volDelta / totalInvPrev) * 100).toFixed(1) : 0;
 
   // Top movers
-  const byVolAbs  = [...wowDeduped].filter(r => r.inv_prev > 0).sort((a,b) => Math.abs(b.inv_delta) - Math.abs(a.inv_delta)).slice(0,8);
-  const byCRShift = [...wowDeduped].filter(r => r.inv_cur >= 50).sort((a,b) => Math.abs(b.cr_delta) - Math.abs(a.cr_delta)).slice(0,8);
+  const byVolAbs  = Array.from(wowDeduped).filter(r => r.inv_prev > 0).sort((a,b) => Math.abs(b.inv_delta) - Math.abs(a.inv_delta)).slice(0,8);
+  const byCRShift = Array.from(wowDeduped).filter(r => r.inv_cur >= 50).sort((a,b) => Math.abs(b.cr_delta) - Math.abs(a.cr_delta)).slice(0,8);
   const critical  = wowDeduped.filter(r => r.cr_cur < 30 && r.inv_cur > 100).sort((a,b) => a.cr_cur - b.cr_cur).slice(0,5);
 
   const prompt = `Du bist Analyst für einen Kundendienst-Chatbot eines Telekommunikationsunternehmens.
@@ -1621,13 +1813,13 @@ function formatSummary(text) {
 function toggleTheme() {
   document.body.classList.toggle('light');
   const isLight = document.body.classList.contains('light');
-  sessionStorage.setItem('theme', isLight ? 'light' : 'dark');
+  try { sessionStorage.setItem('theme', isLight ? 'light' : 'dark'); } catch(e) {}
   // Redraw charts so colors update
   refreshAllCharts();
   if (document.getElementById('page-cluster').classList.contains('active')) renderCluster();
 }
 (function() {
-  if (sessionStorage.getItem('theme') === 'light') document.body.classList.add('light');
+  try { if (sessionStorage.getItem('theme') === 'light') document.body.classList.add('light'); } catch(e) {}
 })();
 
 /* ═══════════════════ CLUSTERING ═══════════════════ */
@@ -1643,7 +1835,9 @@ const CLUSTERS = {
 };
 
 function getCluster(intent) {
-  for (const key of Object.keys(CLUSTERS)) {
+  var clusterKeys = Object.keys(CLUSTERS);
+  for (var ki = 0; ki < clusterKeys.length; ki++) {
+    var key = clusterKeys[ki];
     if (intent.startsWith(key)) return key;
   }
   return 'Sonstige';
@@ -1703,9 +1897,9 @@ function renderCluster() {
         borderWidth: 1, borderRadius: 4 }]
     },
     options: baseOpts({
-      plugins: { ...baseOpts().plugins, legend: { display: false } },
+      plugins: Object.assign({}, baseOpts().plugins, {legend: { display: false }}),
       scales: { x: baseOpts().scales.x,
-        y: { ...baseOpts().scales.y, min: 0, max: 100, ticks: { ...baseOpts().scales.y.ticks, callback: function(v) { return v + ' %'; } } }
+        y: Object.assign({}, baseOpts().scales.y, { min: 0, max: 100, ticks: Object.assign({}, baseOpts().scales.y.ticks, {callback: function(v) { return v + ' %'; }}) }}
       }
     })
   });
@@ -1721,9 +1915,9 @@ function renderCluster() {
         borderWidth: 1, borderRadius: 4 }]
     },
     options: baseOpts({
-      plugins: { ...baseOpts().plugins, legend: { display: false } },
+      plugins: Object.assign({}, baseOpts().plugins, {legend: { display: false }}),
       scales: { x: baseOpts().scales.x,
-        y: { ...baseOpts().scales.y, ticks: { ...baseOpts().scales.y.ticks, callback: function(v) { return (v/1000).toFixed(0) + 'K'; } } }
+        y: Object.assign({}, baseOpts().scales.y, { ticks: Object.assign({}, baseOpts().scales.y.ticks, {callback: function(v) { return (v/1000).toFixed(0) + 'K'; }}) }}
       }
     })
   });
@@ -1826,28 +2020,27 @@ function detectAnomalies() {
 /* ═══════════════════ PNG EXPORT ═══════════════════ */
 function exportPageAsPng() {
   showToast('Screenshot wird erstellt…', '');
-  var script = document.createElement('script');
-  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-  script.onload = function() {
-    var target = document.querySelector('.page.active') || document.body;
-    html2canvas(target, {
-      backgroundColor: getComputedStyle(document.body).getPropertyValue('--bg').trim() || '#0b0e16',
-      scale: 2,
-      useCORS: true,
-      logging: false
-    }).then(function(canvas) {
-      var link = document.createElement('a');
-      var activeTab = (document.querySelector('.nav-tab.active') || {textContent:'dashboard'}).textContent.trim();
-      link.download = 'dashboard-' + activeTab + '-' + new Date().toISOString().slice(0,10) + '.png';
-      link.href = canvas.toDataURL('image/png');
-      link.click();
-      showToast('✓ PNG exportiert', 'success');
-    }).catch(function(e) {
-      showToast('Export fehlgeschlagen: ' + e.message, 'error');
-    });
-  };
-  script.onerror = function() { showToast('html2canvas konnte nicht geladen werden', 'error'); };
-  document.head.appendChild(script);
+  if (typeof html2canvas === 'undefined') {
+    showToast('html2canvas nicht geladen — bitte Seite neu laden', 'error');
+    return;
+  }
+  var target = document.querySelector('.page.active') || document.body;
+  var isDark = !document.body.classList.contains('light');
+  html2canvas(target, {
+    backgroundColor: isDark ? '#0b0e16' : '#f0f2f7',
+    scale: 2,
+    useCORS: true,
+    logging: false
+  }).then(function(canvas) {
+    var link = document.createElement('a');
+    var activeTab = (document.querySelector('.nav-tab.active') || {textContent:'dashboard'}).textContent.trim();
+    link.download = 'dashboard-' + activeTab + '-' + new Date().toISOString().slice(0,10) + '.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    showToast('✓ PNG exportiert', 'success');
+  }).catch(function(e) {
+    showToast('Export fehlgeschlagen: ' + e.message, 'error');
+  });
 }
 
 /* ═══════════════════ URL PARAMETERS ═══════════════════ */
@@ -1861,7 +2054,7 @@ function pushUrlState() {
   if (from) params.set('from', from);
   if (to)   params.set('to',   to);
   if (document.body.classList.contains('light')) params.set('theme', 'light');
-  history.replaceState(null, '', '?' + params.toString());
+  try { history.replaceState(null, '', '?' + params.toString()); } catch(e) {}
 }
 
 function readUrlState() {
@@ -2149,7 +2342,7 @@ function buildAndRefresh(rows, fileName) {
   const NOISE = new Set(['None','Saleslivechat','Spam','Kein Topintent','Catchphrasedecease','Chatimmobilienwirtschaft','Surveyimmobilienwirtschaft','']);
 
   // ── Weeks & totals
-  const weekSet = [...new Set(rows.map(r => r.w))].filter(Boolean).sort();
+  const weekSet = Array.from(new Set(rows.map(function(r){return r.w;}))).filter(Boolean).sort();
   const byWeek = {};
   weekSet.forEach(w => byWeek[w] = { inv: 0, con: 0 });
   rows.forEach(r => { if (byWeek[r.w]) { byWeek[r.w].inv += r.inv; byWeek[r.w].con += r.con; } });
@@ -2172,7 +2365,7 @@ function buildAndRefresh(rows, fileName) {
   })).filter(d => d.inv > 0);
 
   // ── Top 10 by volume
-  const top10_names = [...intent_totals].sort((a, b) => b.inv - a.inv).slice(0, 10).map(d => d.i);
+  const top10_names = Array.from(intent_totals).sort((a, b) => b.inv - a.inv).slice(0, 10).map(d => d.i);
 
   // ── Weekly CR per top10
   const intent_weekly_cr = {};
@@ -2193,7 +2386,7 @@ function buildAndRefresh(rows, fileName) {
       if (r.w === lastW) lastRows[r.i] = r;
       if (r.w === prevW) prevRows[r.i] = r;
     });
-    const allIntents = new Set([...Object.keys(lastRows), ...Object.keys(prevRows)]);
+    const allIntents = new Set(Object.keys(lastRows).concat(Object.keys(prevRows)));
     allIntents.forEach(intent => {
       const l = lastRows[intent] || { inv: 0, con: 0, cr: 0 };
       const p = prevRows[intent] || { inv: 0, con: 0, cr: 0 };
@@ -2265,6 +2458,43 @@ function buildAndRefresh(rows, fileName) {
   document.getElementById('uploadBtn').classList.remove('loading');
   showToast(`✓ ${fileName} geladen · ${rows.length} Zeilen · ${weekSet.length} Wochen`, 'success');
 }
+
+/* ═══════════════════ SWIPE NAVIGATION (mobile) ═══════════════════ */
+(function() {
+  var touchStartX = 0, touchStartY = 0;
+  var TAB_ORDER = ['overview','trend','cluster','intents','detail','wow'];
+
+  document.addEventListener('touchstart', function(e) {
+    touchStartX = e.changedTouches[0].screenX;
+    touchStartY = e.changedTouches[0].screenY;
+  }, { passive: true });
+
+  document.addEventListener('touchend', function(e) {
+    if (window.innerWidth > 768) return; // desktop: ignore
+    var dx = e.changedTouches[0].screenX - touchStartX;
+    var dy = e.changedTouches[0].screenY - touchStartY;
+    if (Math.abs(dx) < 50 || Math.abs(dy) > Math.abs(dx) * 0.8) return; // too short or too vertical
+
+    var currentId = (document.querySelector('.page.active') || {id:''}).id.replace('page-', '');
+    var idx = TAB_ORDER.indexOf(currentId);
+    if (idx < 0) return;
+
+    var nextIdx = dx < 0 ? Math.min(idx + 1, TAB_ORDER.length - 1) : Math.max(idx - 1, 0);
+    if (nextIdx === idx) return;
+
+    var nextId = TAB_ORDER[nextIdx];
+    var tabEl = Array.from(document.querySelectorAll('.nav-tab')).find(function(t) {
+      return t.getAttribute('onclick') && t.getAttribute('onclick').indexOf("'" + nextId + "'") > -1;
+    });
+    if (tabEl) {
+      showPage(nextId, tabEl);
+      // Scroll nav tab into view
+      tabEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      // Scroll page to top
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, { passive: true });
+})();
 
 /* ═══════════════════ INIT ═══════════════════ */
 populateTimeFilter();
