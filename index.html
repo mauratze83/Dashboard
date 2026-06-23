@@ -228,6 +228,40 @@ canvas.spark { display: block; }
   .grid2, .grid3 { grid-template-columns: 1fr; }
   .wow-summary { grid-template-columns: 1fr 1fr; }
 }
+/* UPLOAD BUTTON */
+.upload-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 14px; border-radius: 7px; cursor: pointer;
+  font-size: 12px; font-weight: 600; letter-spacing: .02em;
+  background: var(--accent-dim, rgba(91,141,238,.15));
+  border: 1px solid var(--accent); color: var(--accent);
+  transition: all .15s; white-space: nowrap;
+}
+.upload-btn:hover { background: var(--accent); color: #fff; }
+.upload-btn.loading { opacity: .6; pointer-events: none; }
+
+/* DRAG OVERLAY */
+body.drag-active::after {
+  content: 'CSV hier ablegen';
+  position: fixed; inset: 0; z-index: 400;
+  background: rgba(91,141,238,.12);
+  border: 3px dashed var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; font-weight: 700; color: var(--accent);
+  pointer-events: none;
+}
+
+/* TOAST */
+.toast-bar {
+  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(60px);
+  background: var(--card); border: 1px solid var(--borderhi); border-radius: 8px;
+  padding: 10px 20px; font-size: 13px; font-weight: 500; color: var(--thi);
+  display: flex; align-items: center; gap: 8px;
+  transition: transform .3s, opacity .3s; opacity: 0; z-index: 600; white-space: nowrap;
+}
+.toast-bar.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+.toast-bar.success { border-color: var(--green); color: var(--green); }
+.toast-bar.error   { border-color: var(--red);   color: var(--red); }
 </style>
 </head>
 <body>
@@ -237,9 +271,24 @@ canvas.spark { display: block; }
     <div class="logo-pip"></div>
     Chatbot Performance Dashboard
   </div>
-  <span class="header-meta">KW 2026-01 – 2026-25 &nbsp;·&nbsp; 69 Intents &nbsp;·&nbsp; 2,93M Anfragen</span>
-  <div class="cr-badge" id="headerCR">Ø CR: 58,4 %</div>
+  <span class="header-meta" id="headerMeta">KW 2026-01 – 2026-25 &nbsp;·&nbsp; 69 Intents &nbsp;·&nbsp; 2,93M Anfragen</span>
+  <div style="display:flex;align-items:center;gap:10px">
+    <div class="cr-badge" id="headerCR">Ø CR: 58,4 %</div>
+    <label class="upload-btn" id="uploadBtn" title="Neue CSV laden">
+      ↑ CSV aktualisieren
+      <input type="file" accept=".csv,.tsv" id="csvFileInput" style="display:none" onchange="handleCsvUpload(this)">
+    </label>
+  </div>
 </header>
+
+<!-- Upload overlay -->
+<div id="uploadOverlay" style="display:none; position:fixed; inset:0; z-index:500; background:rgba(0,0,0,.7); backdrop-filter:blur(4px); align-items:center; justify-content:center;">
+  <div style="background:var(--card); border:1px solid var(--borderhi); border-radius:14px; padding:32px 40px; text-align:center; min-width:320px;">
+    <div id="uploadSpinner" style="font-size:28px; margin-bottom:12px;">⏳</div>
+    <div id="uploadMsg" style="font-size:14px; font-weight:600; color:var(--thi); margin-bottom:6px;">CSV wird verarbeitet…</div>
+    <div id="uploadSub" style="font-size:11px; color:var(--tmid);">Bitte warten</div>
+  </div>
+</div>
 
 <nav>
   <div class="nav-tab active" onclick="showPage('overview', this)">Übersicht</div>
@@ -484,6 +533,8 @@ canvas.spark { display: block; }
 </div>
 
 </main>
+
+<div class="toast-bar" id="toastBar"></div>
 
 <script>
 /* ═══════════════════ DATA ═══════════════════ */
@@ -1048,6 +1099,245 @@ function fmtK(n) {
   if (n >= 1e6) return (n/1e6).toFixed(2) + 'M';
   if (n >= 1e3) return (n/1e3).toFixed(1) + 'K';
   return n.toFixed(0);
+}
+
+/* ═══════════════════ CSV UPLOAD ENGINE ═══════════════════ */
+
+function handleCsvUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+  input.value = ''; // reset so same file can be re-uploaded
+  processFile(file);
+}
+
+// Global drag-drop on the whole window
+window.addEventListener('dragover', e => { e.preventDefault(); document.body.classList.add('drag-active'); });
+window.addEventListener('dragleave', e => { if (!e.relatedTarget) document.body.classList.remove('drag-active'); });
+window.addEventListener('drop', e => {
+  e.preventDefault();
+  document.body.classList.remove('drag-active');
+  const file = e.dataTransfer.files[0];
+  if (file && (file.name.endsWith('.csv') || file.name.endsWith('.tsv'))) processFile(file);
+  else showToast('Bitte eine CSV-Datei ablegen.', 'error');
+});
+
+function showOverlay(msg, sub) {
+  document.getElementById('uploadMsg').textContent = msg;
+  document.getElementById('uploadSub').textContent = sub;
+  document.getElementById('uploadOverlay').style.display = 'flex';
+}
+function hideOverlay() { document.getElementById('uploadOverlay').style.display = 'none'; }
+
+let toastTimer2;
+function showToast(msg, type = '') {
+  const el = document.getElementById('toastBar');
+  el.textContent = msg;
+  el.className = 'toast-bar show ' + type;
+  clearTimeout(toastTimer2);
+  toastTimer2 = setTimeout(() => el.className = 'toast-bar', 3500);
+}
+
+function processFile(file) {
+  showOverlay('CSV wird gelesen…', file.name);
+  document.getElementById('uploadBtn').classList.add('loading');
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const text = e.target.result;
+      parseAndRebuild(text, file.name);
+    } catch(err) {
+      hideOverlay();
+      document.getElementById('uploadBtn').classList.remove('loading');
+      showToast('Fehler: ' + err.message, 'error');
+    }
+  };
+  reader.onerror = () => { hideOverlay(); showToast('Datei konnte nicht gelesen werden.', 'error'); };
+  reader.readAsText(file, 'UTF-8');
+}
+
+function parseAndRebuild(text, fileName) {
+  showOverlay('Daten werden verarbeitet…', 'Berechne Aggregationen');
+
+  // Parse CSV manually (handles quoted fields, dot-thousands, comma-decimal)
+  const lines = text.trim().split(/\r?\n/);
+  const header = parseCsvLine(lines[0]);
+
+  // Find column indices flexibly
+  const ci = name => header.findIndex(h => h.toLowerCase().includes(name.toLowerCase()));
+  const iWoche   = ci('woche');
+  const iIntent  = ci('intent');
+  const iInv     = header.findIndex(h => h.toLowerCase().includes('involved') || h === '#Involved');
+  const iCon     = header.findIndex(h => h.toLowerCase().includes('contained') || h === '#Contained');
+  const iCR      = header.findIndex(h => h.toLowerCase().includes('cr') || h.toLowerCase().includes('%cr'));
+
+  if ([iWoche, iIntent, iInv, iCon].some(i => i === -1)) {
+    hideOverlay();
+    showToast('Spalten nicht erkannt. Erwartet: Woche, Intent, #Involved, #Contained', 'error');
+    return;
+  }
+
+  const NOISE = new Set(['None','Saleslivechat','Spam','Kein Topintent','Catchphrasedecease','Chatimmobilienwirtschaft','Surveyimmobilienwirtschaft','']);
+
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cols = parseCsvLine(lines[i]);
+    if (cols.length < 4) continue;
+    const w   = (cols[iWoche] || '').trim();
+    const int = (cols[iIntent] || '').trim();
+    const inv = parseNum(cols[iInv]);
+    const con = parseNum(cols[iCon]);
+    if (!w || isNaN(inv) || isNaN(con)) continue;
+    const cr  = iCR >= 0 ? parseNum(cols[iCR]) : (inv > 0 ? con/inv*100 : 0);
+    rows.push({ w, i: int, inv, con, cr: isNaN(cr) ? (inv > 0 ? con/inv*100 : 0) : cr });
+  }
+
+  if (rows.length === 0) {
+    hideOverlay(); showToast('Keine gültigen Daten gefunden.', 'error'); return;
+  }
+
+  showOverlay('Aggregiere Wochen…', `${rows.length} Zeilen gefunden`);
+  setTimeout(() => { // yield to browser so overlay paints
+    buildAndRefresh(rows, fileName);
+  }, 30);
+}
+
+function parseCsvLine(line) {
+  const result = []; let cur = ''; let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') { inQ = !inQ; }
+    else if (ch === ',' && !inQ) { result.push(cur.trim()); cur = ''; }
+    else { cur += ch; }
+  }
+  result.push(cur.trim());
+  return result;
+}
+
+function parseNum(str) {
+  if (!str) return NaN;
+  // Remove quotes, spaces, percent signs
+  let s = str.replace(/["%\s]/g, '');
+  // German number format: 1.234,56 → remove dots, replace comma with dot
+  if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)) s = s.replace(/\./g, '').replace(',', '.');
+  else s = s.replace(',', '.');
+  return parseFloat(s);
+}
+
+function buildAndRefresh(rows, fileName) {
+  const NOISE = new Set(['None','Saleslivechat','Spam','Kein Topintent','Catchphrasedecease','Chatimmobilienwirtschaft','Surveyimmobilienwirtschaft','']);
+
+  // ── Weeks & totals
+  const weekSet = [...new Set(rows.map(r => r.w))].filter(Boolean).sort();
+  const byWeek = {};
+  weekSet.forEach(w => byWeek[w] = { inv: 0, con: 0 });
+  rows.forEach(r => { if (byWeek[r.w]) { byWeek[r.w].inv += r.inv; byWeek[r.w].con += r.con; } });
+  const weekly_totals = weekSet.map(w => ({
+    w, inv: byWeek[w].inv, con: byWeek[w].con,
+    cr: byWeek[w].inv > 0 ? Math.round(byWeek[w].con / byWeek[w].inv * 1000) / 10 : 0
+  }));
+
+  // ── Intent totals (excl. noise)
+  const cleanRows = rows.filter(r => !NOISE.has(r.i) && r.inv > 0);
+  const intentMap = {};
+  cleanRows.forEach(r => {
+    if (!intentMap[r.i]) intentMap[r.i] = { inv: 0, con: 0 };
+    intentMap[r.i].inv += r.inv;
+    intentMap[r.i].con += r.con;
+  });
+  const intent_totals = Object.entries(intentMap).map(([i, d]) => ({
+    i, inv: d.inv, con: d.con,
+    cr: d.inv > 0 ? Math.round(d.con / d.inv * 1000) / 10 : 0
+  })).filter(d => d.inv > 0);
+
+  // ── Top 10 by volume
+  const top10_names = [...intent_totals].sort((a, b) => b.inv - a.inv).slice(0, 10).map(d => d.i);
+
+  // ── Weekly CR per top10
+  const intent_weekly_cr = {};
+  top10_names.forEach(name => {
+    intent_weekly_cr[name] = weekSet.map(w => {
+      const r = rows.find(x => x.w === w && x.i === name);
+      return r ? Math.round(r.cr * 10) / 10 : null;
+    });
+  });
+
+  // ── WoW: last 2 weeks
+  const wowData = { last: weekSet[weekSet.length - 1], prev: weekSet[weekSet.length - 2], wow: [] };
+  if (weekSet.length >= 2) {
+    const lastW = weekSet[weekSet.length - 1];
+    const prevW = weekSet[weekSet.length - 2];
+    const lastRows = {}; const prevRows = {};
+    rows.filter(r => !NOISE.has(r.i)).forEach(r => {
+      if (r.w === lastW) lastRows[r.i] = r;
+      if (r.w === prevW) prevRows[r.i] = r;
+    });
+    const allIntents = new Set([...Object.keys(lastRows), ...Object.keys(prevRows)]);
+    allIntents.forEach(intent => {
+      const l = lastRows[intent] || { inv: 0, con: 0, cr: 0 };
+      const p = prevRows[intent] || { inv: 0, con: 0, cr: 0 };
+      if (l.inv === 0 && p.inv === 0) return;
+      wowData.wow.push({
+        i: intent,
+        inv_cur: l.inv, con_cur: l.con, cr_cur: Math.round(l.cr * 10) / 10,
+        inv_prev: p.inv, con_prev: p.con, cr_prev: Math.round(p.cr * 10) / 10,
+        inv_delta: l.inv - p.inv,
+        inv_delta_pct: p.inv > 0 ? Math.round((l.inv - p.inv) / p.inv * 1000) / 10 : 0,
+        cr_delta: Math.round((l.cr - p.cr) * 10) / 10
+      });
+    });
+  }
+
+  // ── Patch global state
+  const newData = { weeks: weekSet, weekly_totals, intent_totals, top10_names, intent_weekly_cr };
+  Object.assign(DATA, newData);
+  Object.assign(WOW_DATA, wowData);
+
+  // Rebuild deduped WoW list
+  wowSeen.clear();
+  wowDeduped.length = 0;
+  WOW_DATA.wow.forEach(r => {
+    if (!wowSeen.has(r.i) && r.inv_cur > 0) { wowSeen.add(r.i); wowDeduped.push(r); }
+  });
+
+  // ── Update header
+  const totalInv = weekly_totals.reduce((s, d) => s + d.inv, 0);
+  const totalCon = weekly_totals.reduce((s, d) => s + d.con, 0);
+  const avgCR    = totalInv > 0 ? (totalCon / totalInv * 100).toFixed(1) : '—';
+  const kwFirst  = weekSet[0]; const kwLast = weekSet[weekSet.length - 1];
+  document.getElementById('headerMeta').innerHTML =
+    `KW ${kwFirst} – ${kwLast} &nbsp;·&nbsp; ${intent_totals.length} Intents &nbsp;·&nbsp; ${fmtK(totalInv)} Anfragen`;
+  document.getElementById('headerCR').textContent = `Ø CR: ${avgCR} %`;
+
+  // Update WoW table headers dynamically
+  const prevKW = wowData.prev ? wowData.prev.split('-')[1] : '—';
+  const lastKW = wowData.last ? wowData.last.split('-')[1] : '—';
+  const wowHead = document.querySelector('#page-wow .wow-table-wrap thead tr');
+  if (wowHead) wowHead.innerHTML = `
+    <th>Intent</th><th>Involved KW${prevKW}</th><th>Involved KW${lastKW}</th>
+    <th>Volumen-Shift</th><th>CR KW${prevKW}</th><th>CR KW${lastKW}</th>
+    <th>CR-Shift</th><th>Signal</th>`;
+
+  // ── Destroy all charts and re-render active page
+  Object.keys(charts).forEach(k => { if (charts[k]) { charts[k].destroy(); delete charts[k]; } });
+
+  // Re-render everything
+  renderOverview();
+  renderIntentTable();
+  populateDetailSelect();
+
+  // If trend/wow was visible, re-render those too (they lazy-init)
+  const activePage = document.querySelector('.page.active');
+  if (activePage) {
+    const id = activePage.id.replace('page-', '');
+    if (id === 'trend') renderTrend();
+    if (id === 'wow') renderWow();
+    if (id === 'detail') renderDetail();
+  }
+
+  hideOverlay();
+  document.getElementById('uploadBtn').classList.remove('loading');
+  showToast(`✓ ${fileName} geladen · ${rows.length} Zeilen · ${weekSet.length} Wochen`, 'success');
 }
 
 /* ═══════════════════ INIT ═══════════════════ */
