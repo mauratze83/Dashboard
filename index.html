@@ -243,10 +243,12 @@ canvas.spark { display: block; }
 /* DRAG OVERLAY */
 body.drag-active::after {
   content: 'CSV hier ablegen';
-  position: fixed; inset: 0; z-index: 400;
+  position: fixed; top:0; left:0; right:0; bottom:0; z-index: 400;
   background: rgba(91,141,238,.12);
   border: 3px dashed var(--accent);
-  display: flex; align-items: center; justify-content: center;
+  display: block;
+  padding-top: 45vh;
+  text-align: center;
   font-size: 22px; font-weight: 700; color: var(--accent);
   pointer-events: none;
 }
@@ -319,7 +321,7 @@ body.drag-active::after {
 </header>
 
 <!-- Upload overlay -->
-<div id="uploadOverlay" style="display:none; position:fixed; inset:0; z-index:500; background:rgba(0,0,0,.7); backdrop-filter:blur(4px); align-items:center; justify-content:center;">
+<div id="uploadOverlay" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; z-index:500; background:rgba(0,0,0,.7); -webkit-backdrop-filter:blur(4px); backdrop-filter:blur(4px); align-items:center; justify-content:center;">
   <div style="background:var(--card); border:1px solid var(--borderhi); border-radius:14px; padding:32px 40px; text-align:center; min-width:320px;">
     <div id="uploadSpinner" style="font-size:28px; margin-bottom:12px;">⏳</div>
     <div id="uploadMsg" style="font-size:14px; font-weight:600; color:var(--thi); margin-bottom:6px;">CSV wird verarbeitet…</div>
@@ -800,8 +802,8 @@ function renderOverview() {
   const totalInv = wt.reduce((s,d) => s+d.inv, 0);
   const totalCon = wt.reduce((s,d) => s+d.con, 0);
   const avgCR    = totalInv > 0 ? (totalCon/totalInv*100).toFixed(1) : '—';
-  const crFirst  = wt[0]?.cr || 0;
-  const crLast   = wt[wt.length-1]?.cr || 0;
+  const crFirst  = (wt[0] && wt[0].cr) ? wt[0].cr : 0;
+  const crLast   = (wt[wt.length-1] && wt[wt.length-1].cr) ? wt[wt.length-1].cr : 0;
   const crDelta  = (crLast - crFirst).toFixed(1);
   document.getElementById('ovKpiInv').textContent  = fmtK(totalInv);
   document.getElementById('ovKpiCon').textContent  = fmtK(totalCon);
@@ -1435,6 +1437,7 @@ Schreibe die Summary in folgendem Format:
 Sei präzise, nutze konkrete Zahlen aus den Daten. Keine allgemeinen Floskeln. Max. 350 Wörter.`;
 
   try {
+    // Non-streaming fetch — works reliably across all browsers including Edge
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -1446,7 +1449,7 @@ Sei präzise, nutze konkrete Zahlen aus den Daten. Keine allgemeinen Floskeln. M
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
         max_tokens: 1000,
-        stream: true,
+        stream: false,
         messages: [{ role: 'user', content: prompt }]
       })
     });
@@ -1455,43 +1458,28 @@ Sei präzise, nutze konkrete Zahlen aus den Daten. Keine allgemeinen Floskeln. M
     document.getElementById('wowSummaryLoading').style.display = 'none';
     document.getElementById('wowSummaryContent').style.display = 'block';
 
-    const textEl = document.getElementById('wowSummaryText');
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-    let fullText = '';
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop();
-      for (const line of lines) {
-        if (!line.startsWith('data: ')) continue;
-        const json = line.slice(6).trim();
-        if (json === '[DONE]') break;
-        try {
-          const evt = JSON.parse(json);
-          if (evt.type === 'content_block_delta' && evt.delta?.text) {
-            fullText += evt.delta.text;
-            textEl.innerHTML = formatSummary(fullText);
-          }
-        } catch {}
-      }
+    if (!response.ok) {
+      const errBody = await response.text();
+      throw new Error('API Fehler ' + response.status + ': ' + errBody);
     }
 
-    // Final render
-    textEl.innerHTML = formatSummary(fullText);
+    const data = await response.json();
+    const fullText = (data.content || [])
+      .filter(function(b) { return b.type === 'text'; })
+      .map(function(b) { return b.text; })
+      .join('');
+
+    document.getElementById('wowSummaryText').innerHTML = formatSummary(fullText);
     document.getElementById('wowSummaryMeta').textContent =
-      `KI-generierte Analyse · ${prevKW} → ${lastKW} · ${new Date().toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'})} Uhr`;
+      'KI-generierte Analyse \u00b7 ' + prevKW + ' \u2192 ' + lastKW + ' \u00b7 ' +
+      new Date().toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'}) + ' Uhr';
 
   } catch (err) {
     clearInterval(dotTimer);
     document.getElementById('wowSummaryLoading').style.display = 'none';
     document.getElementById('wowSummaryContent').style.display = 'block';
     document.getElementById('wowSummaryText').innerHTML =
-      `<span style="color:var(--red)">Fehler beim Generieren: ${err.message}</span>`;
+      '<span style="color:var(--red)">Fehler beim Generieren: ' + err.message + '</span>';
   }
 
   btn.disabled = false;
