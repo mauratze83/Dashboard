@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chatbot Performance Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  --bg:       #0b0e16;
+  --panel:    #111420;
+  --card:     #171b27;
+  --hover:    #1e2334;
+  --border:   #232840;
+  --borderhi: #303757;
+  --accent:   #5b8dee;
+  --accent2:  #8b6cf7;
+  --green:    #30d896;
+  --amber:    #f5a623;
+  --red:      #f06060;
+  --thi:      #e8ebf5;
+  --tmid:     #7a84a0;
+  --tlo:      #3d4460;
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'Inter', sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 14px; }
+body { font-family: var(--sans); background: var(--bg); color: var(--thi); min-height: 100vh; }
+
+/* HEADER */
+header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 24px; height: 52px;
+  background: var(--panel); border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 200;
+}
+.logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 14px; letter-spacing: .02em; }
+.logo-pip { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+.header-meta { font-size: 11px; color: var(--tmid); font-family: var(--mono); }
+.cr-badge {
+  font-family: var(--mono); font-size: 12px; font-weight: 500;
+  padding: 4px 12px; border-radius: 6px;
+  background: rgba(48,216,150,.12); color: var(--green);
+  border: 1px solid rgba(48,216,150,.25);
+}
+
+/* NAV */
+nav {
+  display: flex; gap: 2px;
+  padding: 0 24px;
+  background: var(--panel); border-bottom: 1px solid var(--border);
+}
+.nav-tab {
+  padding: 10px 16px; font-size: 12px; font-weight: 500; color: var(--tmid);
+  border-bottom: 2px solid transparent; cursor: pointer; transition: all .15s;
+  white-space: nowrap;
+}
+.nav-tab:hover { color: var(--thi); }
+.nav-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* MAIN */
+main { padding: 22px 24px; max-width: 1400px; margin: 0 auto; }
+.page { display: none; }
+.page.active { display: block; }
+
+/* KPI ROW */
+.kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
+.kpi {
+  background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+  padding: 16px 18px;
+}
+.kpi-label { font-size: 10px; font-weight: 600; letter-spacing: .1em; color: var(--tmid); text-transform: uppercase; margin-bottom: 8px; }
+.kpi-value { font-family: var(--mono); font-size: 26px; font-weight: 500; }
+.kpi-value.green { color: var(--green); }
+.kpi-value.amber { color: var(--amber); }
+.kpi-sub { font-size: 10px; color: var(--tlo); margin-top: 5px; }
+.kpi-delta { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-family: var(--mono); margin-top: 4px; }
+.kpi-delta.up { color: var(--green); }
+.kpi-delta.down { color: var(--red); }
+
+/* CARDS */
+.card {
+  background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+  padding: 18px 20px; margin-bottom: 16px;
+}
+.card-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px;
+}
+.card-title { font-size: 13px; font-weight: 600; }
+.card-sub { font-size: 10px; color: var(--tmid); margin-top: 2px; }
+.chart-wrap { position: relative; }
+.h240 { height: 240px; }
+.h280 { height: 280px; }
+.h320 { height: 320px; }
+
+/* GRID */
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+.grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+
+/* INTENT TABLE */
+.intent-table-wrap { overflow-x: auto; border-radius: 8px; border: 1px solid var(--border); }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+thead tr { background: var(--hover); }
+th {
+  padding: 9px 14px; text-align: left;
+  font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--tmid); border-bottom: 1px solid var(--border);
+  cursor: pointer; white-space: nowrap; user-select: none;
+}
+th:hover { color: var(--thi); }
+th .sort-icon { margin-left: 4px; opacity: .4; }
+th.sorted .sort-icon { opacity: 1; color: var(--accent); }
+td {
+  padding: 8px 14px; border-bottom: 1px solid var(--border);
+  color: var(--tmid); font-family: var(--mono); font-size: 11px;
+}
+td.intent-name { font-family: var(--sans); font-size: 12px; color: var(--thi); max-width: 220px; }
+td.intent-name span { 
+  display: inline-block; padding: 2px 7px; border-radius: 4px;
+  font-size: 10px; font-weight: 500; margin-right: 5px;
+}
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--hover); color: var(--thi); }
+
+.cr-bar-wrap { display: flex; align-items: center; gap: 8px; }
+.cr-bar-bg { flex: 1; height: 6px; background: var(--border); border-radius: 3px; min-width: 60px; }
+.cr-bar-fill { height: 100%; border-radius: 3px; }
+.cr-val { font-size: 11px; font-family: var(--mono); min-width: 38px; text-align: right; }
+
+/* FILTER ROW */
+.filters { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+.filter-label { font-size: 10px; font-weight: 600; letter-spacing: .08em; color: var(--tmid); text-transform: uppercase; }
+select, input[type=text] {
+  background: var(--card); border: 1px solid var(--border);
+  color: var(--thi); border-radius: 6px; font-family: var(--sans);
+  font-size: 12px; padding: 6px 10px; cursor: pointer; outline: none;
+  transition: border-color .15s;
+}
+select:hover, select:focus, input[type=text]:hover, input[type=text]:focus { border-color: var(--accent); }
+.btn {
+  background: var(--card); border: 1px solid var(--border); color: var(--thi);
+  border-radius: 6px; font-family: var(--sans); font-size: 12px; font-weight: 500;
+  padding: 6px 12px; cursor: pointer; transition: all .15s;
+}
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn.active { background: rgba(91,141,238,.15); border-color: var(--accent); color: var(--accent); }
+
+/* CR COLOR */
+.cr-high { color: var(--green) !important; }
+.cr-mid  { color: var(--amber) !important; }
+.cr-low  { color: var(--red) !important; }
+.tag { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 9px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+.tag-auftrag  { background: rgba(91,141,238,.15); color: var(--accent); }
+.tag-problem  { background: rgba(240,96,96,.12); color: var(--red); }
+.tag-info     { background: rgba(48,216,150,.12); color: var(--green); }
+.tag-korrektur{ background: rgba(245,166,35,.12); color: var(--amber); }
+.tag-kuendigung{ background: rgba(139,108,247,.15); color: var(--accent2); }
+.tag-hardware { background: rgba(91,141,238,.1); color: #7aadee; }
+.tag-status   { background: rgba(48,216,150,.08); color: #5ab88f; }
+.tag-other    { background: rgba(255,255,255,.06); color: var(--tmid); }
+
+/* TREND CHIP */
+.trend-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-family: var(--mono); }
+
+/* SECTION LABEL */
+.sec-label {
+  font-size: 10px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--tlo); margin-bottom: 14px; margin-top: 4px;
+}
+
+/* HIGHLIGHT BAND */
+.band {
+  display: flex; align-items: center; gap: 8px; padding: 10px 14px;
+  border-radius: 7px; font-size: 12px; margin-bottom: 8px;
+}
+.band.green { background: rgba(48,216,150,.07); border: 1px solid rgba(48,216,150,.18); }
+.band.red   { background: rgba(240,96,96,.07);  border: 1px solid rgba(240,96,96,.18); }
+.band .band-icon { font-size: 16px; }
+.band .band-text { color: var(--tmid); }
+.band .band-text strong { color: var(--thi); }
+
+/* SPARKLINE inline canvas */
+canvas.spark { display: block; }
+
+/* WoW SPECIFIC */
+.wow-summary {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px;
+}
+.wow-kpi {
+  background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+  padding: 16px 18px;
+}
+.delta-up   { color: var(--green); }
+.delta-down { color: var(--red); }
+.delta-neu  { color: var(--tmid); }
+
+.wow-table-wrap { overflow-x: auto; border-radius: 8px; border: 1px solid var(--border); }
+.wow-table-wrap table { width: 100%; border-collapse: collapse; font-size: 12px; }
+
+.pill {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: 20px; font-size: 11px;
+  font-family: var(--mono); font-weight: 500; white-space: nowrap;
+}
+.pill-up   { background: rgba(48,216,150,.12); color: var(--green); border: 1px solid rgba(48,216,150,.25); }
+.pill-down { background: rgba(240,96,96,.12);  color: var(--red);   border: 1px solid rgba(240,96,96,.25); }
+.pill-flat { background: rgba(255,255,255,.05); color: var(--tmid);  border: 1px solid var(--border); }
+
+.wow-bar-wrap { display: flex; align-items: center; gap: 6px; }
+.wow-bar-center { flex: 1; height: 8px; background: var(--border); border-radius: 4px; position: relative; min-width: 80px; }
+.wow-bar-fill-pos { position: absolute; top: 0; left: 50%; height: 100%; border-radius: 0 4px 4px 0; }
+.wow-bar-fill-neg { position: absolute; top: 0; right: 50%; height: 100%; border-radius: 4px 0 0 4px; }
+
+.signal-icon { font-size: 14px; }
+.wow-section-head {
+  font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--tlo); padding: 10px 14px 8px; background: var(--hover);
+  border-bottom: 1px solid var(--border);
+}
+.threshold-toggle { display: flex; align-items: center; gap: 8px; }
+
+@media (max-width: 900px) {
+  .kpi-row { grid-template-columns: 1fr 1fr; }
+  .grid2, .grid3 { grid-template-columns: 1fr; }
+  .wow-summary { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-pip"></div>
+    Chatbot Performance Dashboard
+  </div>
+  <span class="header-meta">KW 2026-01 – 2026-25 &nbsp;·&nbsp; 69 Intents &nbsp;·&nbsp; 2,93M Anfragen</span>
+  <div class="cr-badge" id="headerCR">Ø CR: 58,4 %</div>
+</header>
+
+<nav>
+  <div class="nav-tab active" onclick="showPage('overview', this)">Übersicht</div>
+  <div class="nav-tab" onclick="showPage('trend', this)">Wochentrend</div>
+  <div class="nav-tab" onclick="showPage('intents', this)">Intent-Analyse</div>
+  <div class="nav-tab" onclick="showPage('detail', this)">Intent-Verlauf</div>
+  <div class="nav-tab" onclick="showPage('wow', this)">WoW</div>
+</nav>
+
+<main>
+
+<!-- ═══════ ÜBERSICHT ═══════ -->
+<div class="page active" id="page-overview">
+
+  <div class="kpi-row">
+    <div class="kpi">
+      <div class="kpi-label">Gesamt Anfragen</div>
+      <div class="kpi-value">2,93M</div>
+      <div class="kpi-sub">2026-01 bis 2026-25</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Contained</div>
+      <div class="kpi-value green">1,71M</div>
+      <div class="kpi-sub">Durch Bot gelöst</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Ø Containment Rate</div>
+      <div class="kpi-value green">58,4 %</div>
+      <div class="kpi-delta up">▲ +5,0 PP seit KW 01</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Aktive Intents</div>
+      <div class="kpi-value">69</div>
+      <div class="kpi-sub">Kategorien insgesamt</div>
+    </div>
+  </div>
+
+  <!-- Highlights -->
+  <div class="sec-label">Highlights</div>
+  <div class="band green">
+    <span class="band-icon">🏆</span>
+    <span class="band-text">Beste CR: <strong>Info_Catweazle</strong> mit <strong>86,7 %</strong> · <strong>Kuendigung_Zusatzdienst</strong> mit <strong>82,7 %</strong></span>
+  </div>
+  <div class="band red" style="margin-bottom:16px">
+    <span class="band-icon">⚠️</span>
+    <span class="band-text">Niedrigste CR: <strong>Auftrag_Kuendigungsruecknahme_Winback</strong> mit nur <strong>5,5 %</strong> · <strong>Korrektur_Vertrag</strong> mit <strong>22,4 %</strong> · <strong>Hardware_Lieferung</strong> mit <strong>29,8 %</strong></span>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <div class="card-head">
+        <div>
+          <div class="card-title">Wöchentliche Containment Rate</div>
+          <div class="card-sub">Entwicklung über alle 25 Wochen</div>
+        </div>
+      </div>
+      <div class="chart-wrap h240"><canvas id="ovCrLine"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <div>
+          <div class="card-title">Involved vs. Contained</div>
+          <div class="card-sub">Wöchentliches Anfragevolumen</div>
+        </div>
+      </div>
+      <div class="chart-wrap h240"><canvas id="ovVolBar"></canvas></div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <div class="card-head"><div class="card-title">Top 10 Intents nach Volumen</div></div>
+      <div class="chart-wrap h280"><canvas id="ovTop10Bar"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">CR-Verteilung aller Intents</div></div>
+      <div class="chart-wrap h280"><canvas id="ovCrDist"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ WOCHENTREND ═══════ -->
+<div class="page" id="page-trend">
+  <div class="card">
+    <div class="card-head">
+      <div>
+        <div class="card-title">Containment Rate — Wochenverlauf</div>
+        <div class="card-sub">Gesamtbotperformance je Woche</div>
+      </div>
+    </div>
+    <div class="chart-wrap h280"><canvas id="trendCR"></canvas></div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <div class="card-head"><div class="card-title">Anfragevolumen pro Woche</div></div>
+      <div class="chart-wrap h240"><canvas id="trendVol"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">Nicht-Contained (Eskalationen)</div></div>
+      <div class="chart-wrap h240"><canvas id="trendEsc"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <div class="card-title">Top-10-Intent CR im Zeitverlauf</div>
+      <div class="card-sub">Nur die volumenstärksten Intents</div>
+    </div>
+    <div class="chart-wrap h320"><canvas id="trendTop10"></canvas></div>
+  </div>
+</div>
+
+<!-- ═══════ INTENT-ANALYSE ═══════ -->
+<div class="page" id="page-intents">
+  <div class="filters">
+    <span class="filter-label">Kategorie:</span>
+    <select id="catFilter" onchange="renderIntentTable()">
+      <option value="">Alle</option>
+      <option value="Auftrag">Auftrag</option>
+      <option value="Problem">Problem</option>
+      <option value="Info">Info</option>
+      <option value="Korrektur">Korrektur</option>
+      <option value="Kuendigung">Kündigung</option>
+      <option value="Hardware">Hardware</option>
+      <option value="Status">Status</option>
+    </select>
+    <span class="filter-label">CR-Filter:</span>
+    <button class="btn active" onclick="setCrFilter('all', this)">Alle</button>
+    <button class="btn" onclick="setCrFilter('high', this)">≥ 70 % ✓</button>
+    <button class="btn" onclick="setCrFilter('mid', this)">40–70 %</button>
+    <button class="btn" onclick="setCrFilter('low', this)">&lt; 40 % !</button>
+    <span class="filter-label" style="margin-left:8px">Sortieren:</span>
+    <select id="sortCol" onchange="renderIntentTable()">
+      <option value="inv">Volumen ↓</option>
+      <option value="cr">CR ↓</option>
+      <option value="name">Name A–Z</option>
+    </select>
+  </div>
+
+  <div class="intent-table-wrap">
+    <table id="intentTable">
+      <thead>
+        <tr>
+          <th>Intent</th>
+          <th>Involved</th>
+          <th>Contained</th>
+          <th>Containment Rate</th>
+        </tr>
+      </thead>
+      <tbody id="intentTbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════ INTENT-VERLAUF ═══════ -->
+<div class="page" id="page-detail">
+  <div class="filters">
+    <span class="filter-label">Intent wählen:</span>
+    <select id="detailIntent" onchange="renderDetail()"></select>
+  </div>
+  <div class="kpi-row" id="detailKpis"></div>
+  <div class="card">
+    <div class="card-head">
+      <div class="card-title" id="detailChartTitle">CR-Verlauf</div>
+      <div class="card-sub">Containment Rate je Woche</div>
+    </div>
+    <div class="chart-wrap h280"><canvas id="detailCrLine"></canvas></div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-head"><div class="card-title">Involved pro Woche</div></div>
+      <div class="chart-wrap h220"><canvas id="detailInvBar"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">Contained vs. Nicht-Contained</div></div>
+      <div class="chart-wrap h220"><canvas id="detailStack"></canvas></div>
+    </div>
+  </div>
+</div>
+<!-- ═══════ WoW ═══════ -->
+<div class="page" id="page-wow">
+
+  <div class="wow-summary" id="wowKpis"></div>
+
+  <div class="filters" style="margin-bottom:16px">
+    <span class="filter-label">Min. Volumen-Shift:</span>
+    <select id="wowVolThresh" onchange="renderWow()">
+      <option value="0">Alle</option>
+      <option value="5" selected>≥ 5 %</option>
+      <option value="10">≥ 10 %</option>
+      <option value="20">≥ 20 %</option>
+    </select>
+    <span class="filter-label">Min. CR-Shift:</span>
+    <select id="wowCrThresh" onchange="renderWow()">
+      <option value="0">Alle</option>
+      <option value="2" selected>≥ 2 PP</option>
+      <option value="5">≥ 5 PP</option>
+      <option value="10">≥ 10 PP</option>
+    </select>
+    <span class="filter-label">Ansicht:</span>
+    <button class="btn active" id="wowBtnAll"  onclick="setWowView('all',  this)">Alle</button>
+    <button class="btn"         id="wowBtnVol"  onclick="setWowView('vol',  this)">Volumen</button>
+    <button class="btn"         id="wowBtnCR"   onclick="setWowView('cr',   this)">CR</button>
+    <button class="btn"         id="wowBtnWarn" onclick="setWowView('warn', this)">⚠ Auffällig</button>
+  </div>
+
+  <div class="grid2" style="margin-bottom:16px">
+    <div class="card">
+      <div class="card-head">
+        <div><div class="card-title">Volumen-Shifts (Top 12)</div><div class="card-sub">Absolute Änderung Involved KW24→KW25</div></div>
+      </div>
+      <div class="chart-wrap h280"><canvas id="wowVolChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <div><div class="card-title">CR-Shifts (Top 12)</div><div class="card-sub">Änderung Containment Rate in Prozentpunkten</div></div>
+      </div>
+      <div class="chart-wrap h280"><canvas id="wowCrChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card" style="padding:0;overflow:hidden">
+    <div class="wow-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Intent</th>
+            <th>Involved KW24</th>
+            <th>Involved KW25</th>
+            <th>Volumen-Shift</th>
+            <th>CR KW24</th>
+            <th>CR KW25</th>
+            <th>CR-Shift</th>
+            <th>Signal</th>
+          </tr>
+        </thead>
+        <tbody id="wowTbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<script>
+/* ═══════════════════ DATA ═══════════════════ */
+const DATA = {"weeks": ["2026-01", "2026-02", "2026-03", "2026-04", "2026-05", "2026-06", "2026-07", "2026-08", "2026-09", "2026-10", "2026-11", "2026-12", "2026-13", "2026-14", "2026-15", "2026-16", "2026-17", "2026-18", "2026-19", "2026-20", "2026-21", "2026-22", "2026-23", "2026-24", "2026-25"], "weekly_totals": [{"w": "2026-01", "inv": 98526.0, "con": 54093.0, "cr": 54.9}, {"w": "2026-02", "inv": 117769.0, "con": 63968.0, "cr": 54.3}, {"w": "2026-03", "inv": 133369.0, "con": 73552.0, "cr": 55.1}, {"w": "2026-04", "inv": 123766.0, "con": 68819.0, "cr": 55.6}, {"w": "2026-05", "inv": 122799.0, "con": 67167.0, "cr": 54.7}, {"w": "2026-06", "inv": 116071.0, "con": 63040.0, "cr": 54.3}, {"w": "2026-07", "inv": 107963.0, "con": 59772.0, "cr": 55.4}, {"w": "2026-08", "inv": 109494.0, "con": 61270.0, "cr": 56.0}, {"w": "2026-09", "inv": 134058.0, "con": 74859.0, "cr": 55.8}, {"w": "2026-10", "inv": 126698.0, "con": 74793.0, "cr": 59.0}, {"w": "2026-11", "inv": 125165.0, "con": 71390.0, "cr": 57.0}, {"w": "2026-12", "inv": 126967.0, "con": 73809.0, "cr": 58.1}, {"w": "2026-13", "inv": 123290.0, "con": 72498.0, "cr": 58.8}, {"w": "2026-14", "inv": 112224.0, "con": 68951.0, "cr": 61.4}, {"w": "2026-15", "inv": 104750.0, "con": 65230.0, "cr": 62.3}, {"w": "2026-16", "inv": 111551.0, "con": 70966.0, "cr": 63.6}, {"w": "2026-17", "inv": 112381.0, "con": 72597.0, "cr": 64.6}, {"w": "2026-18", "inv": 96705.0, "con": 61926.0, "cr": 64.0}, {"w": "2026-19", "inv": 137944.0, "con": 85325.0, "cr": 61.9}, {"w": "2026-20", "inv": 106549.0, "con": 62274.0, "cr": 58.4}, {"w": "2026-21", "inv": 112367.0, "con": 65673.0, "cr": 58.4}, {"w": "2026-22", "inv": 106824.0, "con": 63318.0, "cr": 59.3}, {"w": "2026-23", "inv": 119607.0, "con": 70661.0, "cr": 59.1}, {"w": "2026-24", "inv": 118774.0, "con": 70389.0, "cr": 59.3}, {"w": "2026-25", "inv": 119539.0, "con": 71629.0, "cr": 59.9}], "intent_totals": [{"i": "Auftrag_Esim_Allgemein", "inv": 26441.0, "con": 17951.0, "cr": 67.9}, {"i": "Auftrag_Hardware", "inv": 43156.0, "con": 17655.0, "cr": 40.9}, {"i": "Auftrag_Kuendigungsruecknahme_Winback", "inv": 11862.0, "con": 656.0, "cr": 5.5}, {"i": "Auftrag_Portierung", "inv": 204158.0, "con": 107373.0, "cr": 52.6}, {"i": "Auftrag_Rechnung_Zweitschrift", "inv": 59569.0, "con": 26796.0, "cr": 45.0}, {"i": "Auftrag_Selfservice_Daten", "inv": 12818.0, "con": 9250.0, "cr": 72.2}, {"i": "Auftrag_Sim_Freischaltung", "inv": 19487.0, "con": 8660.0, "cr": 44.4}, {"i": "Auftrag_Sim_Kartentausch", "inv": 14116.0, "con": 10639.0, "cr": 75.4}, {"i": "Auftrag_Sim_Sperre", "inv": 4791.0, "con": 2484.0, "cr": 51.8}, {"i": "Auftrag_Sperre_Mobilesbezahlen", "inv": 7361.0, "con": 4839.0, "cr": 65.7}, {"i": "Auftrag_Sperre_Werbeanzeiger", "inv": 2225.0, "con": 1394.0, "cr": 62.7}, {"i": "Auftrag_Stammdaten_Adressename", "inv": 23212.0, "con": 16640.0, "cr": 71.7}, {"i": "Auftrag_Stammdaten_Mail", "inv": 6565.0, "con": 4105.0, "cr": 62.5}, {"i": "Auftrag_Techniker", "inv": 17895.0, "con": 10316.0, "cr": 57.6}, {"i": "Auftrag_Vertrag", "inv": 99517.0, "con": 46842.0, "cr": 47.1}, {"i": "Auftrag_Vertrag_Gigakombi", "inv": 10512.0, "con": 5703.0, "cr": 54.3}, {"i": "Auftrag_Vertrag_Rufnummerntausch", "inv": 5612.0, "con": 2017.0, "cr": 35.9}, {"i": "Auftrag_Vertrag_Uebernahme", "inv": 7532.0, "con": 5201.0, "cr": 69.1}, {"i": "Auftrag_Vertrag_Umzug", "inv": 26615.0, "con": 18826.0, "cr": 70.7}, {"i": "Auftrag_Vertrag_Verlaengerung", "inv": 40542.0, "con": 18345.0, "cr": 45.2}, {"i": "Auftrag_Vertrag_Zusammenlegen", "inv": 45652.0, "con": 35491.0, "cr": 77.7}, {"i": "Auftrag_Zahlung_Aufschub", "inv": 38714.0, "con": 11630.0, "cr": 30.0}, {"i": "Auftrag_Zahlung_Einzugsermaechtigung", "inv": 29898.0, "con": 22531.0, "cr": 75.4}, {"i": "Auftrag_Zahlung_Ratenzahlung", "inv": 23131.0, "con": 8366.0, "cr": 36.2}, {"i": "Auftrag_Zahlung_Umbuchung", "inv": 9967.0, "con": 1402.0, "cr": 14.1}, {"i": "Auftrag_Zusatzdienst_Hotspot", "inv": 12645.0, "con": 7727.0, "cr": 61.1}, {"i": "Auftrag_Zusatzdienst_Roaming", "inv": 36855.0, "con": 25926.0, "cr": 70.3}, {"i": "Auftrag_Zusatzdienst_Rufumleitung", "inv": 5417.0, "con": 3489.0, "cr": 64.4}, {"i": "Auftrag_Zusatzdienst_Tv", "inv": 19660.0, "con": 9557.0, "cr": 48.6}, {"i": "Auftrag_Zusatzdienst_Wificalling", "inv": 1535.0, "con": 984.0, "cr": 64.1}, {"i": "Hardware_Lieferung", "inv": 51664.0, "con": 15375.0, "cr": 29.8}, {"i": "Hardware_Retoure", "inv": 40058.0, "con": 16557.0, "cr": 41.3}, {"i": "Info_Catweazle", "inv": 51106.0, "con": 44307.0, "cr": 86.7}, {"i": "Info_Kontakt", "inv": 214741.0, "con": 152657.0, "cr": 71.1}, {"i": "Info_Sim", "inv": 18899.0, "con": 12102.0, "cr": 64.0}, {"i": "Info_Sim_Puk", "inv": 58539.0, "con": 39640.0, "cr": 67.7}, {"i": "Info_Tarif_Daten", "inv": 13023.0, "con": 9992.0, "cr": 76.7}, {"i": "Info_Vertrag_Allgemein", "inv": 45657.0, "con": 25998.0, "cr": 56.9}, {"i": "Info_Vertrag_Kundendaten", "inv": 21081.0, "con": 15454.0, "cr": 73.3}, {"i": "Info_Vertrag_Laufzeit", "inv": 22281.0, "con": 17996.0, "cr": 80.8}, {"i": "Info_Vertrag_Phishing", "inv": 15744.0, "con": 9201.0, "cr": 58.4}, {"i": "Info_Zahlung_Aussenstand", "inv": 21528.0, "con": 14967.0, "cr": 69.5}, {"i": "Info_Zahlung_Zahlungsmoeglichkeiten", "inv": 20602.0, "con": 13738.0, "cr": 66.7}, {"i": "Korrektur_Kuendigung", "inv": 69762.0, "con": 35068.0, "cr": 50.3}, {"i": "Korrektur_Rechnung", "inv": 106068.0, "con": 25051.0, "cr": 23.6}, {"i": "Korrektur_Sperre_Nichtzahlung", "inv": 55660.0, "con": 16949.0, "cr": 30.5}, {"i": "Korrektur_Vertrag", "inv": 46156.0, "con": 10357.0, "cr": 22.4}, {"i": "Korrektur_Vertrag_Umzug", "inv": 6867.0, "con": 3406.0, "cr": 49.6}, {"i": "Korrektur_Zahlung", "inv": 47059.0, "con": 16378.0, "cr": 34.8}, {"i": "Korrektur_Zahlung_Mahnunginkasso", "inv": 9728.0, "con": 3531.0, "cr": 36.3}, {"i": "Kuendigung_Vertrag_Fristgerecht", "inv": 109638.0, "con": 64063.0, "cr": 58.4}, {"i": "Kuendigung_Vertrag_Neuvertrag", "inv": 18532.0, "con": 13307.0, "cr": 71.8}, {"i": "Kuendigung_Zusatzdienst", "inv": 20113.0, "con": 16624.0, "cr": 82.7}, {"i": "Problem_Aktivierungscode", "inv": 12357.0, "con": 9058.0, "cr": 73.3}, {"i": "Problem_Hardware_Code", "inv": 38058.0, "con": 21424.0, "cr": 56.3}, {"i": "Problem_Hardware_Defekt", "inv": 31341.0, "con": 15067.0, "cr": 48.1}, {"i": "Problem_Hardware_Einstellungen", "inv": 39979.0, "con": 23977.0, "cr": 60.0}, {"i": "Problem_Hardware_Verlust", "inv": 2061.0, "con": 1005.0, "cr": 48.8}, {"i": "Problem_Netz", "inv": 103778.0, "con": 80323.0, "cr": 77.4}, {"i": "Problem_Netz_Internet", "inv": 232138.0, "con": 180725.0, "cr": 77.9}, {"i": "Problem_Netz_Telefon", "inv": 21675.0, "con": 14389.0, "cr": 66.4}, {"i": "Problem_Selfservice_App", "inv": 8151.0, "con": 3802.0, "cr": 46.6}, {"i": "Problem_Selfservice_Aufladung", "inv": 25227.0, "con": 8884.0, "cr": 35.2}, {"i": "Problem_Selfservice_Login", "inv": 78207.0, "con": 49732.0, "cr": 63.6}, {"i": "Problem_Sim", "inv": 16702.0, "con": 6226.0, "cr": 37.3}, {"i": "Problem_Zusatzdienst_Tv", "inv": 157093.0, "con": 82378.0, "cr": 52.4}, {"i": "Status_Vertrag", "inv": 41556.0, "con": 26290.0, "cr": 63.3}], "top10_names": ["Problem_Netz_Internet", "Info_Kontakt", "Auftrag_Portierung", "Problem_Zusatzdienst_Tv", "Kuendigung_Vertrag_Fristgerecht", "Korrektur_Rechnung", "Problem_Netz", "Auftrag_Vertrag", "Problem_Selfservice_Login", "Korrektur_Kuendigung"], "intent_weekly_cr": {"Problem_Netz_Internet": [68.6, 67.3, 68.4, 68.2, 67.6, 68.8, 69.8, 69.2, 70.5, 83.7, 82.3, 81.2, 82.3, 83.0, 82.6, 82.7, 82.6, 82.8, 82.4, 82.2, 83.5, 84.7, 83.1, 82.2, 83.7], "Info_Kontakt": [62.2, 62.5, 62.3, 66.0, 67.9, 67.2, 72.2, 73.1, 72.4, 73.1, 73.0, 75.5, 74.7, 75.2, 74.4, 75.2, 76.1, 70.9, 65.8, 71.8, 73.6, 70.5, 72.4, 74.0, 72.3], "Auftrag_Portierung": [59.1, 59.3, 57.4, 56.2, 57.1, 48.8, 49.4, 49.9, 50.5, 49.3, 46.6, 51.0, 55.4, 55.3, 57.0, 54.8, 53.7, 49.1, 49.4, 50.9, 50.7, 52.0, 50.0, 51.9, 50.9], "Problem_Zusatzdienst_Tv": [50.3, 50.1, 59.8, 61.9, 61.4, 53.1, 50.4, 52.9, 42.3, 51.5, 48.1, 49.5, 52.2, 53.8, 54.8, 56.8, 58.7, 54.8, 48.2, 47.8, 46.4, 47.5, 48.8, 48.5, 52.0], "Kuendigung_Vertrag_Fristgerecht": [56.7, 57.8, 58.5, 57.7, 56.4, 56.5, 58.4, 57.9, 58.1, 56.4, 56.4, 54.8, 53.6, 55.2, 54.7, 59.2, 61.8, 62.3, 64.8, 63.6, 63.2, 59.4, 60.7, 63.2, 61.7], "Korrektur_Rechnung": [31.8, 32.1, 24.9, 23.4, 22.1, 22.5, 21.4, 22.7, 22.2, 22.4, 18.5, 20.3, 22.5, 23.3, 25.0, 23.9, 25.0, 24.8, 26.3, 22.7, 23.0, 22.3, 24.0, 23.6, 22.4], "Problem_Netz": [59.1, 58.0, 60.9, 60.6, 59.6, 62.7, 59.7, 61.3, 60.6, 80.1, 83.1, 85.0, 80.5, 79.1, 82.8, 85.1, 87.7, 88.0, 89.6, 88.1, 87.9, 87.8, 87.0, 87.4, 88.0], "Auftrag_Vertrag": [50.7, 49.2, 48.1, 48.4, 47.5, 45.8, 44.8, 45.5, 49.1, 47.6, 45.4, 47.0, 47.6, 48.2, 46.2, 47.3, 47.4, 48.2, 46.8, 47.0, 46.7, 45.6, 46.5, 46.3, 44.7], "Problem_Selfservice_Login": [62.1, 64.8, 63.1, 62.9, 62.7, 61.9, 61.6, 61.3, 62.9, 58.8, 55.6, 60.3, 63.2, 61.5, 62.1, 81.6, 81.8, 80.9, 62.7, 55.9, 57.4, 61.7, 63.5, 62.9, 67.4], "Korrektur_Kuendigung": [49.6, 49.9, 50.4, 50.5, 49.8, 51.6, 50.6, 51.1, 50.6, 50.7, 48.2, 46.5, 48.9, 50.7, 47.7, 52.2, 50.5, 50.9, 51.5, 50.7, 50.9, 51.6, 52.3, 50.5, 50.1]}};
+
+/* ═══════════════════ CHART REGISTRY ═══════════════════ */
+const charts = {};
+function destroy(key) { if (charts[key]) { charts[key].destroy(); delete charts[key]; } }
+
+/* ═══════════════════ SHARED CHART OPTIONS ═══════════════════ */
+const WEEKS_SHORT = DATA.weeks.map(w => 'KW' + w.split('-')[1]);
+const ACCENT = '#5b8dee', GREEN = '#30d896', AMBER = '#f5a623', RED = '#f06060';
+const PALETTE10 = ['#5b8dee','#30d896','#f5a623','#8b6cf7','#f06060','#38c4d4','#e87d3e','#a8d672','#d46eb3','#7aadee'];
+
+function baseOpts(extra = {}) {
+  return {
+    responsive: true, maintainAspectRatio: false,
+    animation: { duration: 350 },
+    plugins: {
+      legend: { labels: { color: '#7a84a0', font: { family: 'Inter', size: 11 }, boxWidth: 10, padding: 14 } },
+      tooltip: {
+        backgroundColor: '#171b27', borderColor: '#303757', borderWidth: 1,
+        titleColor: '#e8ebf5', bodyColor: '#7a84a0',
+        titleFont: { family: 'Inter', size: 12, weight: '600' },
+        bodyFont: { family: 'JetBrains Mono', size: 11 }, padding: 10,
+      }
+    },
+    scales: {
+      x: { ticks: { color: '#3d4460', font: { family: 'Inter', size: 10 }, maxRotation: 45 }, grid: { color: '#1c2035' }, border: { color: '#232840' } },
+      y: { ticks: { color: '#3d4460', font: { family: 'JetBrains Mono', size: 10 } }, grid: { color: '#1c2035' }, border: { color: '#232840' } }
+    },
+    ...extra
+  };
+}
+
+function lineDs(label, data, color, fill=false) {
+  return { label, data, borderColor: color, backgroundColor: color + (fill ? '22' : '00'),
+    pointBackgroundColor: color, pointRadius: 3, pointHoverRadius: 5,
+    borderWidth: 2, tension: 0.35, fill };
+}
+
+/* ═══════════════════ OVERVIEW ═══════════════════ */
+function renderOverview() {
+  const wt = DATA.weekly_totals;
+  const labels = WEEKS_SHORT;
+
+  destroy('ovCrLine');
+  charts.ovCrLine = new Chart(document.getElementById('ovCrLine'), {
+    type: 'line',
+    data: { labels, datasets: [lineDs('CR %', wt.map(d => d.cr), GREEN, true)] },
+    options: baseOpts({
+      plugins: { ...baseOpts().plugins, legend: { display: false },
+        annotation: {} },
+      scales: {
+        x: baseOpts().scales.x,
+        y: { ...baseOpts().scales.y, min: 50, max: 70,
+          ticks: { ...baseOpts().scales.y.ticks, callback: v => v + ' %' } }
+      }
+    })
+  });
+
+  destroy('ovVolBar');
+  charts.ovVolBar = new Chart(document.getElementById('ovVolBar'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Involved', data: wt.map(d => d.inv), backgroundColor: ACCENT + '55', borderColor: ACCENT, borderWidth: 1, borderRadius: 2 },
+        { label: 'Contained', data: wt.map(d => d.con), backgroundColor: GREEN + '77', borderColor: GREEN, borderWidth: 1, borderRadius: 2 }
+      ]
+    },
+    options: baseOpts({ scales: {
+      x: { ...baseOpts().scales.x, stacked: false },
+      y: { ...baseOpts().scales.y, ticks: { ...baseOpts().scales.y.ticks, callback: v => (v/1000).toFixed(0)+'K' } }
+    }})
+  });
+
+  const top10 = [...DATA.intent_totals].sort((a,b) => b.inv - a.inv).slice(0,10);
+  destroy('ovTop10Bar');
+  charts.ovTop10Bar = new Chart(document.getElementById('ovTop10Bar'), {
+    type: 'bar',
+    data: {
+      labels: top10.map(d => d.i.replace(/_/g,' ')),
+      datasets: [{
+        label: 'Involved', data: top10.map(d => d.inv),
+        backgroundColor: top10.map((_,i) => PALETTE10[i] + 'bb'),
+        borderColor: top10.map((_,i) => PALETTE10[i]),
+        borderWidth: 1, borderRadius: 3
+      }]
+    },
+    options: baseOpts({
+      indexAxis: 'y',
+      plugins: { ...baseOpts().plugins, legend: { display: false } },
+      scales: {
+        x: { ...baseOpts().scales.x, ticks: { ...baseOpts().scales.x.ticks, callback: v => (v/1000).toFixed(0)+'K' } },
+        y: { ...baseOpts().scales.y, ticks: { color: '#7a84a0', font: { family: 'Inter', size: 10 } } }
+      }
+    })
+  });
+
+  // CR distribution buckets
+  const buckets = [0,0,0,0,0]; // <20, 20-40, 40-60, 60-80, >=80
+  DATA.intent_totals.filter(d => d.inv > 0).forEach(d => {
+    if (d.cr < 20) buckets[0]++;
+    else if (d.cr < 40) buckets[1]++;
+    else if (d.cr < 60) buckets[2]++;
+    else if (d.cr < 80) buckets[3]++;
+    else buckets[4]++;
+  });
+  destroy('ovCrDist');
+  charts.ovCrDist = new Chart(document.getElementById('ovCrDist'), {
+    type: 'bar',
+    data: {
+      labels: ['< 20 %', '20–40 %', '40–60 %', '60–80 %', '≥ 80 %'],
+      datasets: [{ label: 'Anzahl Intents', data: buckets,
+        backgroundColor: [RED+'cc', AMBER+'99', ACCENT+'88', GREEN+'88', GREEN+'cc'],
+        borderColor:      [RED, AMBER, ACCENT, GREEN, GREEN],
+        borderWidth: 1, borderRadius: 4 }]
+    },
+    options: baseOpts({ plugins: { ...baseOpts().plugins, legend: { display: false } } })
+  });
+}
+
+/* ═══════════════════ TREND ═══════════════════ */
+function renderTrend() {
+  const wt = DATA.weekly_totals;
+  const labels = WEEKS_SHORT;
+
+  destroy('trendCR');
+  charts.trendCR = new Chart(document.getElementById('trendCR'), {
+    type: 'line',
+    data: { labels, datasets: [lineDs('Containment Rate', wt.map(d => d.cr), GREEN, true)] },
+    options: baseOpts({
+      plugins: { ...baseOpts().plugins, legend: { display: false } },
+      scales: {
+        x: baseOpts().scales.x,
+        y: { ...baseOpts().scales.y, min: 52, max: 67,
+          ticks: { ...baseOpts().scales.y.ticks, callback: v => v + ' %' } }
+      }
+    })
+  });
+
+  destroy('trendVol');
+  charts.trendVol = new Chart(document.getElementById('trendVol'), {
+    type: 'bar',
+    data: { labels, datasets: [{
+      label: 'Anfragen', data: wt.map(d => d.inv),
+      backgroundColor: ACCENT + '66', borderColor: ACCENT, borderWidth: 1, borderRadius: 2
+    }]},
+    options: baseOpts({
+      plugins: { ...baseOpts().plugins, legend: { display: false } },
+      scales: { x: baseOpts().scales.x, y: { ...baseOpts().scales.y, ticks: { ...baseOpts().scales.y.ticks, callback: v => (v/1000).toFixed(0)+'K' } } }
+    })
+  });
+
+  destroy('trendEsc');
+  charts.trendEsc = new Chart(document.getElementById('trendEsc'), {
+    type: 'bar',
+    data: { labels, datasets: [{
+      label: 'Nicht-Contained', data: wt.map(d => d.inv - d.con),
+      backgroundColor: RED + '66', borderColor: RED, borderWidth: 1, borderRadius: 2
+    }]},
+    options: baseOpts({
+      plugins: { ...baseOpts().plugins, legend: { display: false } },
+      scales: { x: baseOpts().scales.x, y: { ...baseOpts().scales.y, ticks: { ...baseOpts().scales.y.ticks, callback: v => (v/1000).toFixed(0)+'K' } } }
+    })
+  });
+
+  destroy('trendTop10');
+  charts.trendTop10 = new Chart(document.getElementById('trendTop10'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: DATA.top10_names.map((name, i) => ({
+        label: name.replace(/_/g,' '),
+        data: DATA.intent_weekly_cr[name],
+        borderColor: PALETTE10[i], backgroundColor: 'transparent',
+        pointRadius: 2, pointHoverRadius: 4, borderWidth: 1.5, tension: 0.3
+      }))
+    },
+    options: baseOpts({
+      scales: {
+        x: baseOpts().scales.x,
+        y: { ...baseOpts().scales.y, min: 0, max: 100,
+          ticks: { ...baseOpts().scales.y.ticks, callback: v => v + ' %' } }
+      }
+    })
+  });
+}
+
+/* ═══════════════════ INTENT TABLE ═══════════════════ */
+let crFilter = 'all';
+function setCrFilter(v, el) {
+  crFilter = v;
+  document.querySelectorAll('.filters .btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  renderIntentTable();
+}
+
+function getTag(intent) {
+  if (intent.startsWith('Auftrag')) return 'auftrag';
+  if (intent.startsWith('Problem')) return 'problem';
+  if (intent.startsWith('Info')) return 'info';
+  if (intent.startsWith('Korrektur')) return 'korrektur';
+  if (intent.startsWith('Kuendigung')) return 'kuendigung';
+  if (intent.startsWith('Hardware')) return 'hardware';
+  if (intent.startsWith('Status')) return 'status';
+  return 'other';
+}
+
+function crColor(cr) {
+  if (cr >= 70) return 'cr-high';
+  if (cr >= 40) return 'cr-mid';
+  return 'cr-low';
+}
+function crBarColor(cr) {
+  if (cr >= 70) return GREEN;
+  if (cr >= 40) return AMBER;
+  return RED;
+}
+
+function renderIntentTable() {
+  const cat = document.getElementById('catFilter').value;
+  const sortBy = document.getElementById('sortCol').value;
+
+  let rows = DATA.intent_totals.filter(d => d.inv > 0);
+
+  if (cat) rows = rows.filter(d => d.i.startsWith(cat));
+  if (crFilter === 'high') rows = rows.filter(d => d.cr >= 70);
+  else if (crFilter === 'mid') rows = rows.filter(d => d.cr >= 40 && d.cr < 70);
+  else if (crFilter === 'low') rows = rows.filter(d => d.cr < 40);
+
+  if (sortBy === 'inv') rows.sort((a,b) => b.inv - a.inv);
+  else if (sortBy === 'cr') rows.sort((a,b) => b.cr - a.cr);
+  else rows.sort((a,b) => a.i.localeCompare(b.i));
+
+  const tbody = document.getElementById('intentTbody');
+  tbody.innerHTML = rows.map(d => {
+    const tag = getTag(d.i);
+    const label = d.i.split('_').slice(1).join(' ') || d.i;
+    const cat0 = d.i.split('_')[0];
+    return `<tr>
+      <td class="intent-name">
+        <span class="tag tag-${tag}">${cat0}</span>
+        ${label}
+      </td>
+      <td>${fmtK(d.inv)}</td>
+      <td>${fmtK(d.con)}</td>
+      <td>
+        <div class="cr-bar-wrap">
+          <div class="cr-bar-bg"><div class="cr-bar-fill" style="width:${d.cr}%;background:${crBarColor(d.cr)}"></div></div>
+          <span class="cr-val ${crColor(d.cr)}">${d.cr.toFixed(1)} %</span>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+/* ═══════════════════ DETAIL ═══════════════════ */
+// We need per-week data per intent. We have CR for top10. For all intents we reconstruct from totals & embed a per-week lookup.
+// We'll load full CSV data inline for the detail view from intent_totals (only totals available for non-top10).
+// For detail charts we use top10 weekly data if available, else just show totals.
+
+// Full raw data embedded for per-week detail (we already computed intent_weekly_cr for top10 only)
+// Let's also embed the full weekly data per intent from a compact representation.
+// Since we have 1783 rows, let's embed the weekly breakdown inline.
+
+const WEEKLY_RAW = {"Auftrag_Esim_Allgemein":{"2026-10":[2138,1365,63.8],"2026-11":[2204,1373,62.3],"2026-12":[2103,1350,64.2],"2026-13":[2136,1381,64.6],"2026-14":[2160,1443,66.8],"2026-15":[2060,1399,67.9],"2026-16":[1944,1286,66.2],"2026-17":[1814,1211,66.8],"2026-18":[1526,975,63.9],"2026-19":[1896,1282,67.6],"2026-20":[1555,1052,67.6],"2026-21":[1596,1072,67.2],"2026-22":[1583,1021,64.5],"2026-23":[2524,1693,67.1],"2026-24":[2504,1589,63.5],"2026-25":[2318,1576,68.0]},"Problem_Netz_Internet":{"2026-01":[8319,5709,68.6],"2026-02":[10400,6996,67.3],"2026-03":[11124,7613,68.4],"2026-04":[10344,7051,68.2],"2026-05":[9821,6641,67.6],"2026-06":[9151,6297,68.8],"2026-07":[8326,5813,69.8],"2026-08":[8365,5791,69.2],"2026-09":[10203,7191,70.5],"2026-10":[9626,8058,83.7],"2026-11":[8933,7354,82.3],"2026-12":[9028,7330,81.2],"2026-13":[8912,7327,82.2],"2026-14":[7781,6462,83.0],"2026-15":[7458,6158,82.6],"2026-16":[8280,6847,82.7],"2026-17":[8296,6855,82.6],"2026-18":[7337,6073,82.8],"2026-19":[10641,8764,82.4],"2026-20":[8394,6902,82.2],"2026-21":[8979,7498,83.5],"2026-22":[8491,7192,84.7],"2026-23":[9151,7606,83.1],"2026-24":[8877,7300,82.2],"2026-25":[11669,9764,83.7]},"Info_Kontakt":{"2026-01":[5909,3676,62.2],"2026-02":[6606,4130,62.5],"2026-03":[7620,4746,62.3],"2026-04":[7295,4815,66.0],"2026-05":[7210,4896,67.9],"2026-06":[6989,4696,67.2],"2026-07":[6417,4634,72.2],"2026-08":[6472,4732,73.1],"2026-09":[8186,5929,72.4],"2026-10":[8082,5910,73.1],"2026-11":[7851,5733,73.0],"2026-12":[8063,6090,75.5],"2026-13":[7791,5817,74.7],"2026-14":[7109,5345,75.2],"2026-15":[6741,5012,74.4],"2026-16":[7237,5444,75.2],"2026-17":[7398,5632,76.1],"2026-18":[6388,4530,70.9],"2026-19":[9698,6381,65.8],"2026-20":[7378,5300,71.8],"2026-21":[8050,5925,73.6],"2026-22":[7567,5336,70.5],"2026-23":[8259,5979,72.4],"2026-24":[7707,5705,74.0],"2026-25":[8205,5931,72.3]},"Auftrag_Portierung":{"2026-01":[8679,5133,59.1],"2026-02":[8893,5272,59.3],"2026-03":[9521,5466,57.4],"2026-04":[8616,4843,56.2],"2026-05":[8699,4967,57.1],"2026-06":[8119,3963,48.8],"2026-07":[7382,3647,49.4],"2026-08":[7439,3710,49.9],"2026-09":[9154,4621,50.5],"2026-10":[8426,4154,49.3],"2026-11":[8302,3868,46.6],"2026-12":[8253,4210,51.0],"2026-13":[7876,4361,55.4],"2026-14":[7162,3960,55.3],"2026-15":[6851,3904,57.0],"2026-16":[7409,4061,54.8],"2026-17":[7459,4009,53.7],"2026-18":[6454,3168,49.1],"2026-19":[8952,4421,49.4],"2026-20":[7773,3955,50.9],"2026-21":[8038,4075,50.7],"2026-22":[7614,3959,52.0],"2026-23":[8457,4228,50.0],"2026-24":[8268,4294,51.9],"2026-25":[9315,4745,50.9]},"Korrektur_Rechnung":{"2026-01":[3573,1136,31.8],"2026-02":[4665,1497,32.1],"2026-03":[5099,1271,24.9],"2026-04":[4740,1109,23.4],"2026-05":[4675,1033,22.1],"2026-06":[4278,963,22.5],"2026-07":[3785,810,21.4],"2026-08":[3815,866,22.7],"2026-09":[4769,1059,22.2],"2026-10":[4611,1035,22.4],"2026-11":[4423,820,18.5],"2026-12":[4388,891,20.3],"2026-13":[4327,974,22.5],"2026-14":[3881,904,23.3],"2026-15":[3576,894,25.0],"2026-16":[3762,895,23.8],"2026-17":[3736,934,25.0],"2026-18":[3226,800,24.8],"2026-19":[4626,1218,26.3],"2026-20":[3748,851,22.7],"2026-21":[3820,879,23.0],"2026-22":[3651,814,22.3],"2026-23":[4154,997,24.0],"2026-24":[4007,944,23.6],"2026-25":[4765,1069,22.4]}};
+
+function populateDetailSelect() {
+  const sel = document.getElementById('detailIntent');
+  sel.innerHTML = DATA.intent_totals
+    .filter(d => d.inv > 0)
+    .sort((a,b) => b.inv - a.inv)
+    .map(d => `<option value="${d.i}">${d.i.replace(/_/g,' ')}</option>`)
+    .join('');
+}
+
+function renderDetail() {
+  const intent = document.getElementById('detailIntent').value;
+  if (!intent) return;
+  const totals = DATA.intent_totals.find(d => d.i === intent);
+
+  // KPIs
+  const kpis = document.getElementById('detailKpis');
+  const crClass = totals.cr >= 70 ? 'green' : totals.cr >= 40 ? 'amber' : 'red';
+  kpis.innerHTML = `
+    <div class="kpi"><div class="kpi-label">Gesamt Involved</div><div class="kpi-value">${fmtK(totals.inv)}</div></div>
+    <div class="kpi"><div class="kpi-label">Gesamt Contained</div><div class="kpi-value green">${fmtK(totals.con)}</div></div>
+    <div class="kpi"><div class="kpi-label">Ø Containment Rate</div><div class="kpi-value ${crClass}">${totals.cr.toFixed(1)} %</div></div>
+    <div class="kpi"><div class="kpi-label">Nicht-Contained</div><div class="kpi-value">${fmtK(totals.inv - totals.con)}</div></div>
+  `;
+
+  document.getElementById('detailChartTitle').textContent = intent.replace(/_/g,' ') + ' – CR-Verlauf';
+
+  // Get weekly data: from WEEKLY_RAW or intent_weekly_cr
+  let wLabels, wCR, wInv, wCon;
+  if (DATA.intent_weekly_cr[intent]) {
+    wLabels = WEEKS_SHORT;
+    wCR = DATA.intent_weekly_cr[intent];
+    // approximate inv/con from totals
+    wInv = wCR.map(cr => null);
+    wCon = wCR.map(cr => null);
+  } else if (WEEKLY_RAW[intent]) {
+    const raw = WEEKLY_RAW[intent];
+    wLabels = DATA.weeks.filter(w => raw[w]).map(w => 'KW' + w.split('-')[1]);
+    wCR  = DATA.weeks.filter(w => raw[w]).map(w => raw[w][2]);
+    wInv = DATA.weeks.filter(w => raw[w]).map(w => raw[w][0]);
+    wCon = DATA.weeks.filter(w => raw[w]).map(w => raw[w][1]);
+  } else {
+    wLabels = WEEKS_SHORT;
+    wCR  = DATA.weeks.map(() => null);
+    wInv = DATA.weeks.map(() => null);
+    wCon = DATA.weeks.map(() => null);
+  }
+
+  const color = totals.cr >= 70 ? GREEN : totals.cr >= 40 ? AMBER : RED;
+
+  destroy('detailCrLine');
+  charts.detailCrLine = new Chart(document.getElementById('detailCrLine'), {
+    type: 'line',
+    data: { labels: wLabels, datasets: [lineDs('CR %', wCR, color, true)] },
+    options: baseOpts({
+      plugins: { ...baseOpts().plugins, legend: { display: false } },
+      scales: {
+        x: baseOpts().scales.x,
+        y: { ...baseOpts().scales.y, min: 0, max: 100,
+          ticks: { ...baseOpts().scales.y.ticks, callback: v => v + ' %' } }
+      }
+    })
+  });
+
+  destroy('detailInvBar');
+  charts.detailInvBar = new Chart(document.getElementById('detailInvBar'), {
+    type: 'bar',
+    data: { labels: wLabels, datasets: [{
+      label: 'Involved', data: wInv,
+      backgroundColor: ACCENT + '77', borderColor: ACCENT, borderWidth: 1, borderRadius: 3
+    }]},
+    options: baseOpts({
+      plugins: { ...baseOpts().plugins, legend: { display: false } },
+      scales: { x: baseOpts().scales.x, y: { ...baseOpts().scales.y, ticks: { ...baseOpts().scales.y.ticks, callback: v => v ? (v/1000).toFixed(1)+'K' : '' } } }
+    })
+  });
+
+  destroy('detailStack');
+  charts.detailStack = new Chart(document.getElementById('detailStack'), {
+    type: 'bar',
+    data: { labels: wLabels, datasets: [
+      { label: 'Contained', data: wCon, backgroundColor: GREEN + '88', borderColor: GREEN, borderWidth: 1, borderRadius: 2 },
+      { label: 'Nicht-Contained', data: wInv && wCon ? wInv.map((v,i) => v !== null ? v - wCon[i] : null) : [], backgroundColor: RED + '66', borderColor: RED, borderWidth: 1, borderRadius: 2 }
+    ]},
+    options: baseOpts({
+      scales: {
+        x: { ...baseOpts().scales.x, stacked: true },
+        y: { ...baseOpts().scales.y, stacked: true, ticks: { ...baseOpts().scales.y.ticks, callback: v => v ? (v/1000).toFixed(1)+'K' : '' } }
+      }
+    })
+  });
+}
+
+/* ═══════════════════ WoW DATA ═══════════════════ */
+const WOW_DATA = {"last":"2026-25","prev":"2026-24","wow":[{"i":"Korrektur_Zahlung","inv_cur":1691.0,"con_cur":548.0,"cr_cur":32.4,"inv_prev":1642.0,"con_prev":541.0,"cr_prev":32.9,"inv_delta":49.0,"inv_delta_pct":3.0,"cr_delta":-0.5},{"i":"Auftrag_Sim_Kartentausch","inv_cur":352.0,"con_cur":270.0,"cr_cur":76.7,"inv_prev":369.0,"con_prev":286.0,"cr_prev":77.5,"inv_delta":-17.0,"inv_delta_pct":-4.6,"cr_delta":-0.8},{"i":"Status_Vertrag","inv_cur":1362.0,"con_cur":864.0,"cr_cur":63.4,"inv_prev":1431.0,"con_prev":880.0,"cr_prev":61.5,"inv_delta":-69.0,"inv_delta_pct":-4.8,"cr_delta":1.9},{"i":"Auftrag_Zahlung_Ratenzahlung","inv_cur":868.0,"con_cur":266.0,"cr_cur":30.6,"inv_prev":906.0,"con_prev":279.0,"cr_prev":30.8,"inv_delta":-38.0,"inv_delta_pct":-4.2,"cr_delta":-0.2},{"i":"Auftrag_Zahlung_Aufschub","inv_cur":1858.0,"con_cur":521.0,"cr_cur":28.0,"inv_prev":1822.0,"con_prev":523.0,"cr_prev":28.7,"inv_delta":36.0,"inv_delta_pct":2.0,"cr_delta":-0.7},{"i":"Auftrag_Sim_Sperre","inv_cur":175.0,"con_cur":127.0,"cr_cur":72.6,"inv_prev":155.0,"con_prev":92.0,"cr_prev":59.3,"inv_delta":20.0,"inv_delta_pct":12.9,"cr_delta":13.3},{"i":"Auftrag_Portierung","inv_cur":9315.0,"con_cur":4745.0,"cr_cur":50.9,"inv_prev":8268.0,"con_prev":4294.0,"cr_prev":51.9,"inv_delta":1047.0,"inv_delta_pct":12.7,"cr_delta":-1.0},{"i":"Korrektur_Sperre_Nichtzahlung","inv_cur":2248.0,"con_cur":613.0,"cr_cur":27.3,"inv_prev":2367.0,"con_prev":706.0,"cr_prev":29.8,"inv_delta":-119.0,"inv_delta_pct":-5.0,"cr_delta":-2.5},{"i":"Problem_Netz_Internet","inv_cur":11669.0,"con_cur":9764.0,"cr_cur":83.7,"inv_prev":8877.0,"con_prev":7300.0,"cr_prev":82.2,"inv_delta":2792.0,"inv_delta_pct":31.5,"cr_delta":1.5},{"i":"Auftrag_Techniker","inv_cur":929.0,"con_cur":659.0,"cr_cur":70.9,"inv_prev":838.0,"con_prev":508.0,"cr_prev":60.6,"inv_delta":91.0,"inv_delta_pct":10.9,"cr_delta":10.3},{"i":"Problem_Hardware_Code","inv_cur":1645.0,"con_cur":916.0,"cr_cur":55.7,"inv_prev":1607.0,"con_prev":939.0,"cr_prev":58.4,"inv_delta":38.0,"inv_delta_pct":2.4,"cr_delta":-2.7},{"i":"Info_Vertrag_Phishing","inv_cur":594.0,"con_cur":383.0,"cr_cur":64.5,"inv_prev":556.0,"con_prev":347.0,"cr_prev":62.4,"inv_delta":38.0,"inv_delta_pct":6.8,"cr_delta":2.1},{"i":"Auftrag_Vertrag_Verlaengerung","inv_cur":1312.0,"con_cur":468.0,"cr_cur":35.7,"inv_prev":1438.0,"con_prev":581.0,"cr_prev":40.4,"inv_delta":-126.0,"inv_delta_pct":-8.8,"cr_delta":-4.7},{"i":"Problem_Hardware_Defekt","inv_cur":1432.0,"con_cur":739.0,"cr_cur":51.6,"inv_prev":1277.0,"con_prev":655.0,"cr_prev":51.3,"inv_delta":155.0,"inv_delta_pct":12.1,"cr_delta":0.3},{"i":"Info_Vertrag_Laufzeit","inv_cur":849.0,"con_cur":667.0,"cr_cur":78.6,"inv_prev":839.0,"con_prev":680.0,"cr_prev":81.0,"inv_delta":10.0,"inv_delta_pct":1.2,"cr_delta":-2.4},{"i":"Auftrag_Vertrag_Gigakombi","inv_cur":444.0,"con_cur":288.0,"cr_cur":64.9,"inv_prev":426.0,"con_prev":280.0,"cr_prev":65.7,"inv_delta":18.0,"inv_delta_pct":4.2,"cr_delta":-0.8},{"i":"Korrektur_Zahlung_Mahnunginkasso","inv_cur":353.0,"con_cur":141.0,"cr_cur":39.9,"inv_prev":380.0,"con_prev":143.0,"cr_prev":37.6,"inv_delta":-27.0,"inv_delta_pct":-7.1,"cr_delta":2.3},{"i":"Auftrag_Sperre_Werbeanzeiger","inv_cur":124.0,"con_cur":83.0,"cr_cur":66.9,"inv_prev":102.0,"con_prev":65.0,"cr_prev":63.7,"inv_delta":22.0,"inv_delta_pct":21.6,"cr_delta":3.2},{"i":"Korrektur_Rechnung","inv_cur":4765.0,"con_cur":1069.0,"cr_cur":22.4,"inv_prev":4007.0,"con_prev":944.0,"cr_prev":23.6,"inv_delta":758.0,"inv_delta_pct":18.9,"cr_delta":-1.2},{"i":"Kein Topintent","inv_cur":5709.0,"con_cur":3857.0,"cr_cur":67.6,"inv_prev":4838.0,"con_prev":3285.0,"cr_prev":67.9,"inv_delta":871.0,"inv_delta_pct":18.0,"cr_delta":-0.3},{"i":"Auftrag_Zusatzdienst_Roaming","inv_cur":1675.0,"con_cur":1308.0,"cr_cur":78.1,"inv_prev":1745.0,"con_prev":1305.0,"cr_prev":74.8,"inv_delta":-70.0,"inv_delta_pct":-4.0,"cr_delta":3.3},{"i":"Auftrag_Vertrag_Umzug","inv_cur":864.0,"con_cur":624.0,"cr_cur":72.2,"inv_prev":977.0,"con_prev":706.0,"cr_prev":72.3,"inv_delta":-113.0,"inv_delta_pct":-11.6,"cr_delta":-0.1},{"i":"Auftrag_Vertrag_Uebernahme","inv_cur":277.0,"con_cur":185.0,"cr_cur":66.8,"inv_prev":294.0,"con_prev":190.0,"cr_prev":64.6,"inv_delta":-17.0,"inv_delta_pct":-5.8,"cr_delta":2.2},{"i":"Auftrag_Zusatzdienst_Tv","inv_cur":716.0,"con_cur":338.0,"cr_cur":47.2,"inv_prev":739.0,"con_prev":377.0,"cr_prev":51.0,"inv_delta":-23.0,"inv_delta_pct":-3.1,"cr_delta":-3.8},{"i":"Korrektur_Sperre_Nichtzahlung","inv_cur":2248.0,"con_cur":613.0,"cr_cur":27.3,"inv_prev":2367.0,"con_prev":706.0,"cr_prev":29.8,"inv_delta":-119.0,"inv_delta_pct":-5.0,"cr_delta":-2.5},{"i":"Auftrag_Techniker","inv_cur":929.0,"con_cur":659.0,"cr_cur":70.9,"inv_prev":838.0,"con_prev":508.0,"cr_prev":60.6,"inv_delta":91.0,"inv_delta_pct":10.9,"cr_delta":10.3},{"i":"Problem_Hardware_Einstellungen","inv_cur":1582.0,"con_cur":1028.0,"cr_cur":65.0,"inv_prev":1503.0,"con_prev":935.0,"cr_prev":62.2,"inv_delta":79.0,"inv_delta_pct":5.3,"cr_delta":2.8},{"i":"Auftrag_Zahlung_Ratenzahlung","inv_cur":868.0,"con_cur":266.0,"cr_cur":30.6,"inv_prev":906.0,"con_prev":279.0,"cr_prev":30.8,"inv_delta":-38.0,"inv_delta_pct":-4.2,"cr_delta":-0.2},{"i":"Auftrag_Vertrag_Zusammenlegen","inv_cur":1973.0,"con_cur":1556.0,"cr_cur":78.9,"inv_prev":2322.0,"con_prev":1818.0,"cr_prev":78.3,"inv_delta":-349.0,"inv_delta_pct":-15.0,"cr_delta":0.6},{"i":"Info_Sim_Puk","inv_cur":2082.0,"con_cur":1344.0,"cr_cur":64.6,"inv_prev":2176.0,"con_prev":1398.0,"cr_prev":64.2,"inv_delta":-94.0,"inv_delta_pct":-4.3,"cr_delta":0.4},{"i":"Auftrag_Selfservice_Daten","inv_cur":607.0,"con_cur":505.0,"cr_cur":83.2,"inv_prev":666.0,"con_prev":487.0,"cr_prev":73.1,"inv_delta":-59.0,"inv_delta_pct":-8.9,"cr_delta":10.1},{"i":"Info_Zahlung_Aussenstand","inv_cur":635.0,"con_cur":421.0,"cr_cur":66.3,"inv_prev":617.0,"con_prev":413.0,"cr_prev":66.9,"inv_delta":18.0,"inv_delta_pct":2.9,"cr_delta":-0.6},{"i":"Auftrag_Zahlung_Einzugsermaechtigung","inv_cur":976.0,"con_cur":720.0,"cr_cur":73.8,"inv_prev":964.0,"con_prev":730.0,"cr_prev":75.7,"inv_delta":12.0,"inv_delta_pct":1.2,"cr_delta":-1.9},{"i":"Korrektur_Vertrag","inv_cur":1820.0,"con_cur":395.0,"cr_cur":21.7,"inv_prev":1881.0,"con_prev":432.0,"cr_prev":23.0,"inv_delta":-61.0,"inv_delta_pct":-3.2,"cr_delta":-1.3},{"i":"Korrektur_Vertrag_Umzug","inv_cur":250.0,"con_cur":141.0,"cr_cur":56.4,"inv_prev":235.0,"con_prev":113.0,"cr_prev":48.1,"inv_delta":15.0,"inv_delta_pct":6.4,"cr_delta":8.3},{"i":"Auftrag_Sim_Freischaltung","inv_cur":655.0,"con_cur":281.0,"cr_cur":42.9,"inv_prev":718.0,"con_prev":325.0,"cr_prev":45.3,"inv_delta":-63.0,"inv_delta_pct":-8.8,"cr_delta":-2.4},{"i":"Auftrag_Vertrag_Rufnummerntausch","inv_cur":197.0,"con_cur":78.0,"cr_cur":39.6,"inv_prev":218.0,"con_prev":83.0,"cr_prev":38.1,"inv_delta":-21.0,"inv_delta_pct":-9.6,"cr_delta":1.5},{"i":"Auftrag_Hardware","inv_cur":1586.0,"con_cur":644.0,"cr_cur":40.6,"inv_prev":1611.0,"con_prev":644.0,"cr_prev":40.0,"inv_delta":-25.0,"inv_delta_pct":-1.6,"cr_delta":0.6},{"i":"Auftrag_Vertrag","inv_cur":4484.0,"con_cur":2006.0,"cr_cur":44.7,"inv_prev":4382.0,"con_prev":2030.0,"cr_prev":46.3,"inv_delta":102.0,"inv_delta_pct":2.3,"cr_delta":-1.6},{"i":"Problem_Netz_Telefon","inv_cur":823.0,"con_cur":579.0,"cr_cur":70.4,"inv_prev":829.0,"con_prev":608.0,"cr_prev":73.3,"inv_delta":-6.0,"inv_delta_pct":-0.7,"cr_delta":-2.9},{"i":"Problem_Aktivierungscode","inv_cur":545.0,"con_cur":462.0,"cr_cur":84.8,"inv_prev":489.0,"con_prev":416.0,"cr_prev":85.1,"inv_delta":56.0,"inv_delta_pct":11.5,"cr_delta":-0.3},{"i":"Auftrag_Esim_Allgemein","inv_cur":2318.0,"con_cur":1576.0,"cr_cur":68.0,"inv_prev":2504.0,"con_prev":1589.0,"cr_prev":63.5,"inv_delta":-186.0,"inv_delta_pct":-7.4,"cr_delta":4.5},{"i":"Kuendigung_Zusatzdienst","inv_cur":870.0,"con_cur":728.0,"cr_cur":83.7,"inv_prev":864.0,"con_prev":732.0,"cr_prev":84.7,"inv_delta":6.0,"inv_delta_pct":0.7,"cr_delta":-1.0},{"i":"Auftrag_Zusatzdienst_Hotspot","inv_cur":645.0,"con_cur":419.0,"cr_cur":65.0,"inv_prev":560.0,"con_prev":372.0,"cr_prev":66.4,"inv_delta":85.0,"inv_delta_pct":15.2,"cr_delta":-1.4},{"i":"Problem_Selfservice_Aufladung","inv_cur":1292.0,"con_cur":428.0,"cr_cur":33.1,"inv_prev":1215.0,"con_prev":412.0,"cr_prev":33.9,"inv_delta":77.0,"inv_delta_pct":6.3,"cr_delta":-0.8},{"i":"Auftrag_Kuendigungsruecknahme_Winback","inv_cur":702.0,"con_cur":39.0,"cr_cur":5.6,"inv_prev":660.0,"con_prev":33.0,"cr_prev":5.0,"inv_delta":42.0,"inv_delta_pct":6.4,"cr_delta":0.6},{"i":"Auftrag_Zusatzdienst_Rufumleitung","inv_cur":212.0,"con_cur":140.0,"cr_cur":66.0,"inv_prev":207.0,"con_prev":121.0,"cr_prev":58.5,"inv_delta":5.0,"inv_delta_pct":2.4,"cr_delta":7.5},{"i":"Auftrag_Portierung","inv_cur":9315.0,"con_cur":4745.0,"cr_cur":50.9,"inv_prev":8268.0,"con_prev":4294.0,"cr_prev":51.9,"inv_delta":1047.0,"inv_delta_pct":12.7,"cr_delta":-1.0},{"i":"Kuendigung_Vertrag_Fristgerecht","inv_cur":3717.0,"con_cur":2294.0,"cr_cur":61.7,"inv_prev":3970.0,"con_prev":2511.0,"cr_prev":63.2,"inv_delta":-253.0,"inv_delta_pct":-6.4,"cr_delta":-1.5},{"i":"Problem_Netz","inv_cur":5884.0,"con_cur":5179.0,"cr_cur":88.0,"inv_prev":5075.0,"con_prev":4432.0,"cr_prev":87.3,"inv_delta":809.0,"inv_delta_pct":15.9,"cr_delta":0.7},{"i":"Auftrag_Zahlung_Aufschub","inv_cur":1858.0,"con_cur":521.0,"cr_cur":28.0,"inv_prev":1822.0,"con_prev":523.0,"cr_prev":28.7,"inv_delta":36.0,"inv_delta_pct":2.0,"cr_delta":-0.7},{"i":"Info_Vertrag_Allgemein","inv_cur":1376.0,"con_cur":762.0,"cr_cur":55.4,"inv_prev":1400.0,"con_prev":815.0,"cr_prev":58.2,"inv_delta":-24.0,"inv_delta_pct":-1.7,"cr_delta":-2.8},{"i":"Info_Tarif_Daten","inv_cur":679.0,"con_cur":527.0,"cr_cur":77.6,"inv_prev":617.0,"con_prev":466.0,"cr_prev":75.5,"inv_delta":62.0,"inv_delta_pct":10.0,"cr_delta":2.1},{"i":"Problem_Hardware_Einstellungen","inv_cur":1582.0,"con_cur":1028.0,"cr_cur":65.0,"inv_prev":1503.0,"con_prev":935.0,"cr_prev":62.2,"inv_delta":79.0,"inv_delta_pct":5.3,"cr_delta":2.8},{"i":"Auftrag_Sim_Kartentausch","inv_cur":352.0,"con_cur":270.0,"cr_cur":76.7,"inv_prev":369.0,"con_prev":286.0,"cr_prev":77.5,"inv_delta":-17.0,"inv_delta_pct":-4.6,"cr_delta":-0.8},{"i":"Problem_Selfservice_App","inv_cur":292.0,"con_cur":141.0,"cr_cur":48.3,"inv_prev":359.0,"con_prev":180.0,"cr_prev":50.1,"inv_delta":-67.0,"inv_delta_pct":-18.7,"cr_delta":-1.8},{"i":"Auftrag_Zusatzdienst_Wificalling","inv_cur":70.0,"con_cur":53.0,"cr_cur":75.7,"inv_prev":75.0,"con_prev":49.0,"cr_prev":65.3,"inv_delta":-5.0,"inv_delta_pct":-6.7,"cr_delta":10.4},{"i":"Info_Kontakt","inv_cur":8205.0,"con_cur":5931.0,"cr_cur":72.3,"inv_prev":7707.0,"con_prev":5705.0,"cr_prev":74.0,"inv_delta":498.0,"inv_delta_pct":6.5,"cr_delta":-1.7},{"i":"Info_Zahlung_Zahlungsmoeglichkeiten","inv_cur":640.0,"con_cur":404.0,"cr_cur":63.1,"inv_prev":647.0,"con_prev":407.0,"cr_prev":62.9,"inv_delta":-7.0,"inv_delta_pct":-1.1,"cr_delta":0.2},{"i":"Auftrag_Stammdaten_Mail","inv_cur":272.0,"con_cur":202.0,"cr_cur":74.3,"inv_prev":228.0,"con_prev":148.0,"cr_prev":64.9,"inv_delta":44.0,"inv_delta_pct":19.3,"cr_delta":9.4},{"i":"Auftrag_Sperre_Mobilesbezahlen","inv_cur":323.0,"con_cur":263.0,"cr_cur":81.4,"inv_prev":288.0,"con_prev":207.0,"cr_prev":71.9,"inv_delta":35.0,"inv_delta_pct":12.2,"cr_delta":9.5},{"i":"Info_Catweazle","inv_cur":808.0,"con_cur":646.0,"cr_cur":80.0,"inv_prev":849.0,"con_prev":700.0,"cr_prev":82.4,"inv_delta":-41.0,"inv_delta_pct":-4.8,"cr_delta":-2.4},{"i":"Auftrag_Zahlung_Umbuchung","inv_cur":341.0,"con_cur":35.0,"cr_cur":10.3,"inv_prev":404.0,"con_prev":52.0,"cr_prev":12.9,"inv_delta":-63.0,"inv_delta_pct":-15.6,"cr_delta":-2.6},{"i":"Hardware_Lieferung","inv_cur":2103.0,"con_cur":1344.0,"cr_cur":63.9,"inv_prev":2046.0,"con_prev":1163.0,"cr_prev":56.8,"inv_delta":57.0,"inv_delta_pct":2.8,"cr_delta":7.1},{"i":"Auftrag_Rechnung_Zweitschrift","inv_cur":1877.0,"con_cur":948.0,"cr_cur":50.5,"inv_prev":2045.0,"con_prev":1003.0,"cr_prev":49.0,"inv_delta":-168.0,"inv_delta_pct":-8.2,"cr_delta":1.5},{"i":"Problem_Zusatzdienst_Tv","inv_cur":6178.0,"con_cur":3212.0,"cr_cur":52.0,"inv_prev":4118.0,"con_prev":1999.0,"cr_prev":48.5,"inv_delta":2060.0,"inv_delta_pct":50.0,"cr_delta":3.5},{"i":"Problem_Selfservice_Login","inv_cur":2791.0,"con_cur":1882.0,"cr_cur":67.4,"inv_prev":2964.0,"con_prev":1864.0,"cr_prev":62.9,"inv_delta":-173.0,"inv_delta_pct":-5.8,"cr_delta":4.5},{"i":"Problem_Hardware_Verlust","inv_cur":94.0,"con_cur":45.0,"cr_cur":47.9,"inv_prev":90.0,"con_prev":46.0,"cr_prev":51.1,"inv_delta":4.0,"inv_delta_pct":4.4,"cr_delta":-3.2},{"i":"Info_Vertrag_Kundendaten","inv_cur":709.0,"con_cur":547.0,"cr_cur":77.2,"inv_prev":791.0,"con_prev":602.0,"cr_prev":76.1,"inv_delta":-82.0,"inv_delta_pct":-10.4,"cr_delta":1.1},{"i":"Kuendigung_Vertrag_Neuvertrag","inv_cur":563.0,"con_cur":430.0,"cr_cur":76.4,"inv_prev":494.0,"con_prev":352.0,"cr_prev":71.3,"inv_delta":69.0,"inv_delta_pct":14.0,"cr_delta":5.1},{"i":"Korrektur_Kuendigung","inv_cur":2643.0,"con_cur":1325.0,"cr_cur":50.1,"inv_prev":2465.0,"con_prev":1271.0,"cr_prev":51.6,"inv_delta":178.0,"inv_delta_pct":7.2,"cr_delta":-1.5},{"i":"Hardware_Retoure","inv_cur":1802.0,"con_cur":815.0,"cr_cur":45.2,"inv_prev":1572.0,"con_prev":722.0,"cr_prev":45.9,"inv_delta":230.0,"inv_delta_pct":14.6,"cr_delta":-0.7},{"i":"Auftrag_Vertrag_Zusammenlegen","inv_cur":1973.0,"con_cur":1556.0,"cr_cur":78.9,"inv_prev":2322.0,"con_prev":1818.0,"cr_prev":78.3,"inv_delta":-349.0,"inv_delta_pct":-15.0,"cr_delta":0.6},{"i":"Info_Sim_Puk","inv_cur":2082.0,"con_cur":1344.0,"cr_cur":64.6,"inv_prev":2176.0,"con_prev":1398.0,"cr_prev":64.2,"inv_delta":-94.0,"inv_delta_pct":-4.3,"cr_delta":0.4},{"i":"Problem_Sim","inv_cur":488.0,"con_cur":279.0,"cr_cur":57.2,"inv_prev":442.0,"con_prev":209.0,"cr_prev":47.3,"inv_delta":46.0,"inv_delta_pct":10.4,"cr_delta":9.9},{"i":"Info_Sim","inv_cur":433.0,"con_cur":307.0,"cr_cur":70.9,"inv_prev":488.0,"con_prev":316.0,"cr_prev":64.8,"inv_delta":-55.0,"inv_delta_pct":-11.3,"cr_delta":6.1},{"i":"Auftrag_Stammdaten_Adressename","inv_cur":953.0,"con_cur":665.0,"cr_cur":69.8,"inv_prev":1014.0,"con_prev":718.0,"cr_prev":70.8,"inv_delta":-61.0,"inv_delta_pct":-6.0,"cr_delta":-1.0},{"i":"Auftrag_Zusatzdienst_Roaming","inv_cur":1675.0,"con_cur":1308.0,"cr_cur":78.1,"inv_prev":1745.0,"con_prev":1305.0,"cr_prev":74.8,"inv_delta":-70.0,"inv_delta_pct":-4.0,"cr_delta":3.3}]};
+
+// Deduplicate WoW entries (same intent can appear twice due to CSV quirk)
+const wowDeduped = [];
+const wowSeen = new Set();
+WOW_DATA.wow.forEach(r => {
+  if (!wowSeen.has(r.i) && r.inv_cur > 0) {
+    wowSeen.add(r.i);
+    wowDeduped.push(r);
+  }
+});
+
+let wowView = 'all';
+function setWowView(v, el) {
+  wowView = v;
+  document.querySelectorAll('#page-wow .filters .btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  renderWow();
+}
+
+function getSignal(r) {
+  const bigVol  = Math.abs(r.inv_delta_pct) >= 15;
+  const bigCR   = Math.abs(r.cr_delta) >= 5;
+  const critCR  = r.cr_cur < 30;
+  const crUp    = r.cr_delta >= 5;
+  const crDown  = r.cr_delta <= -5;
+  const volSpike= r.inv_delta_pct >= 20;
+  const volDrop = r.inv_delta_pct <= -15;
+
+  if (critCR && crDown)  return { icon: '🔴', label: 'Kritisch – CR sinkt', cls: 'pill-down' };
+  if (volSpike && crDown)return { icon: '⚠️', label: 'Volumen↑ CR↓', cls: 'pill-down' };
+  if (crDown && bigCR)   return { icon: '↘', label: 'CR-Einbruch', cls: 'pill-down' };
+  if (crUp   && bigCR)   return { icon: '↗', label: 'CR-Sprung', cls: 'pill-up' };
+  if (volSpike)          return { icon: '📈', label: 'Volumen-Spike', cls: 'pill-flat' };
+  if (volDrop)           return { icon: '📉', label: 'Volumen-Drop', cls: 'pill-flat' };
+  if (critCR)            return { icon: '🔴', label: 'Kritisch CR', cls: 'pill-down' };
+  return { icon: '', label: '—', cls: 'pill-flat' };
+}
+
+function renderWow() {
+  const volThresh = parseFloat(document.getElementById('wowVolThresh').value);
+  const crThresh  = parseFloat(document.getElementById('wowCrThresh').value);
+
+  // Summary KPIs
+  const totalInvCur  = wowDeduped.reduce((s,r) => s + r.inv_cur, 0);
+  const totalInvPrev = wowDeduped.reduce((s,r) => s + r.inv_prev, 0);
+  const totalConCur  = wowDeduped.reduce((s,r) => s + r.con_cur, 0);
+  const totalConPrev = wowDeduped.reduce((s,r) => s + r.con_prev, 0);
+  const crCur  = totalInvCur  ? (totalConCur  / totalInvCur  * 100) : 0;
+  const crPrev = totalInvPrev ? (totalConPrev / totalInvPrev * 100) : 0;
+  const crDelta = crCur - crPrev;
+  const invDelta = totalInvCur - totalInvPrev;
+
+  const wowKpis = document.getElementById('wowKpis');
+  wowKpis.innerHTML = `
+    <div class="wow-kpi kpi">
+      <div class="kpi-label">Involved KW${WOW_DATA.prev.split('-')[1]}</div>
+      <div class="kpi-value">${fmtK(totalInvPrev)}</div>
+    </div>
+    <div class="wow-kpi kpi">
+      <div class="kpi-label">Involved KW${WOW_DATA.last.split('-')[1]}</div>
+      <div class="kpi-value">${fmtK(totalInvCur)}</div>
+      <div class="kpi-delta ${invDelta >= 0 ? 'up' : 'down'}">${invDelta >= 0 ? '▲' : '▼'} ${invDelta >= 0 ? '+' : ''}${fmtK(invDelta)} WoW</div>
+    </div>
+    <div class="wow-kpi kpi">
+      <div class="kpi-label">CR KW${WOW_DATA.prev.split('-')[1]}</div>
+      <div class="kpi-value">${crPrev.toFixed(1)} %</div>
+    </div>
+    <div class="wow-kpi kpi">
+      <div class="kpi-label">CR KW${WOW_DATA.last.split('-')[1]}</div>
+      <div class="kpi-value ${crDelta >= 0 ? 'green' : 'amber'}">${crCur.toFixed(1)} %</div>
+      <div class="kpi-delta ${crDelta >= 0 ? 'up' : 'down'}">${crDelta >= 0 ? '▲' : '▼'} ${crDelta >= 0 ? '+' : ''}${crDelta.toFixed(1)} PP WoW</div>
+    </div>`;
+
+  // Filter rows for view
+  let rows = [...wowDeduped];
+  if (wowView === 'vol')  rows = rows.filter(r => Math.abs(r.inv_delta_pct) >= Math.max(volThresh, 1));
+  if (wowView === 'cr')   rows = rows.filter(r => Math.abs(r.cr_delta) >= Math.max(crThresh, 1));
+  if (wowView === 'warn') rows = rows.filter(r => Math.abs(r.inv_delta_pct) >= 10 || Math.abs(r.cr_delta) >= 5);
+  if (wowView === 'all') {
+    rows = rows.filter(r => Math.abs(r.inv_delta_pct) >= volThresh || Math.abs(r.cr_delta) >= crThresh);
+  }
+
+  // Sort by combined signal strength
+  rows.sort((a,b) => (Math.abs(b.inv_delta_pct) * 0.5 + Math.abs(b.cr_delta) * 2) - (Math.abs(a.inv_delta_pct) * 0.5 + Math.abs(a.cr_delta) * 2));
+
+  // Waterfall charts - top12 by |vol| and top12 by |cr|
+  const byVol = [...wowDeduped].sort((a,b) => Math.abs(b.inv_delta) - Math.abs(a.inv_delta)).slice(0,12);
+  const byCR  = [...wowDeduped].filter(r => r.inv_cur >= 100).sort((a,b) => Math.abs(b.cr_delta) - Math.abs(a.cr_delta)).slice(0,12);
+
+  destroy('wowVolChart');
+  charts.wowVolChart = new Chart(document.getElementById('wowVolChart'), {
+    type: 'bar',
+    data: {
+      labels: byVol.map(r => r.i.replace(/_/g,' ')),
+      datasets: [{
+        label: 'Δ Involved',
+        data: byVol.map(r => r.inv_delta),
+        backgroundColor: byVol.map(r => r.inv_delta >= 0 ? GREEN + '99' : RED + '88'),
+        borderColor:     byVol.map(r => r.inv_delta >= 0 ? GREEN : RED),
+        borderWidth: 1, borderRadius: 3
+      }]
+    },
+    options: baseOpts({
+      indexAxis: 'y',
+      plugins: { ...baseOpts().plugins, legend: { display: false },
+        tooltip: { ...baseOpts().plugins.tooltip, callbacks: {
+          label: ctx => ` Δ ${ctx.raw >= 0 ? '+' : ''}${ctx.raw.toFixed(0)} Anfragen`
+        }}
+      },
+      scales: {
+        x: { ...baseOpts().scales.x, ticks: { ...baseOpts().scales.x.ticks, callback: v => (v >= 0 ? '+' : '') + (v/1000).toFixed(1)+'K' } },
+        y: { ...baseOpts().scales.y, ticks: { color: '#7a84a0', font: { family: 'Inter', size: 9 } } }
+      }
+    })
+  });
+
+  destroy('wowCrChart');
+  charts.wowCrChart = new Chart(document.getElementById('wowCrChart'), {
+    type: 'bar',
+    data: {
+      labels: byCR.map(r => r.i.replace(/_/g,' ')),
+      datasets: [{
+        label: 'Δ CR (PP)',
+        data: byCR.map(r => r.cr_delta),
+        backgroundColor: byCR.map(r => r.cr_delta >= 0 ? GREEN + '99' : RED + '88'),
+        borderColor:     byCR.map(r => r.cr_delta >= 0 ? GREEN : RED),
+        borderWidth: 1, borderRadius: 3
+      }]
+    },
+    options: baseOpts({
+      indexAxis: 'y',
+      plugins: { ...baseOpts().plugins, legend: { display: false },
+        tooltip: { ...baseOpts().plugins.tooltip, callbacks: {
+          label: ctx => ` Δ ${ctx.raw >= 0 ? '+' : ''}${ctx.raw.toFixed(1)} PP`
+        }}
+      },
+      scales: {
+        x: { ...baseOpts().scales.x, ticks: { ...baseOpts().scales.x.ticks, callback: v => (v >= 0 ? '+' : '') + v.toFixed(1)+' PP' } },
+        y: { ...baseOpts().scales.y, ticks: { color: '#7a84a0', font: { family: 'Inter', size: 9 } } }
+      }
+    })
+  });
+
+  // Table
+  const maxAbsVol = Math.max(...wowDeduped.map(r => Math.abs(r.inv_delta_pct)));
+  const maxAbsCr  = Math.max(...wowDeduped.map(r => Math.abs(r.cr_delta)));
+
+  const tag = r => {
+    const cat = r.i.split('_')[0];
+    const cls = { Auftrag:'auftrag', Problem:'problem', Info:'info', Korrektur:'korrektur', Kuendigung:'kuendigung', Hardware:'hardware', Status:'status' }[cat] || 'other';
+    return `<span class="tag tag-${cls}">${cat}</span>`;
+  };
+
+  document.getElementById('wowTbody').innerHTML = rows.map(r => {
+    const sig = getSignal(r);
+    const volPct = r.inv_delta_pct;
+    const barW = Math.min(Math.abs(volPct) / maxAbsVol * 100, 100);
+    const crBarW = Math.min(Math.abs(r.cr_delta) / maxAbsCr * 100, 100);
+    const volPill = volPct > 0
+      ? `<span class="pill pill-up">▲ +${volPct.toFixed(1)} %</span>`
+      : volPct < 0
+      ? `<span class="pill pill-down">▼ ${volPct.toFixed(1)} %</span>`
+      : `<span class="pill pill-flat">—</span>`;
+    const crPill = r.cr_delta > 0.4
+      ? `<span class="pill pill-up">▲ +${r.cr_delta.toFixed(1)} PP</span>`
+      : r.cr_delta < -0.4
+      ? `<span class="pill pill-down">▼ ${r.cr_delta.toFixed(1)} PP</span>`
+      : `<span class="pill pill-flat">= ${r.cr_delta.toFixed(1)} PP</span>`;
+    const crCls = v => v >= 70 ? 'cr-high' : v >= 40 ? 'cr-mid' : 'cr-low';
+    return `<tr>
+      <td class="intent-name">${tag(r)} ${r.i.split('_').slice(1).join(' ') || r.i}</td>
+      <td>${fmtK(r.inv_prev)}</td>
+      <td>${fmtK(r.inv_cur)}</td>
+      <td>${volPill}</td>
+      <td class="${crCls(r.cr_prev)}">${r.cr_prev.toFixed(1)} %</td>
+      <td class="${crCls(r.cr_cur)}">${r.cr_cur.toFixed(1)} %</td>
+      <td>${crPill}</td>
+      <td><span class="pill ${sig.cls}">${sig.icon} ${sig.label}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+/* ═══════════════════ NAV ═══════════════════ */
+let activePage = 'overview';
+function showPage(id, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  el.classList.add('active');
+  if (id === 'trend' && !charts.trendCR) renderTrend();
+  if (id === 'intents') renderIntentTable();
+  if (id === 'detail') { populateDetailSelect(); renderDetail(); }
+  if (id === 'wow') renderWow();
+}
+
+/* ═══════════════════ UTILS ═══════════════════ */
+function fmtK(n) {
+  if (!n && n !== 0) return '—';
+  if (n >= 1e6) return (n/1e6).toFixed(2) + 'M';
+  if (n >= 1e3) return (n/1e3).toFixed(1) + 'K';
+  return n.toFixed(0);
+}
+
+/* ═══════════════════ INIT ═══════════════════ */
+renderOverview();
+renderIntentTable();
+</script>
+</body>
+</html>
