@@ -95,7 +95,8 @@ main { padding: 22px 24px; max-width: 1400px; margin: 0 auto; }
 }
 .card-title { font-size: 13px; font-weight: 600; }
 .card-sub { font-size: 10px; color: var(--tmid); margin-top: 2px; }
-.chart-wrap { position: relative; }
+.chart-wrap { position: relative; width: 100%; overflow: hidden; }
+.chart-wrap canvas { max-width: 100%; display: block; }
 .h240 { height: 240px; }
 .h280 { height: 280px; }
 .h320 { height: 320px; }
@@ -1096,11 +1097,39 @@ function lineDs(label, data, color, fill) {
 
 /* Redraw charts on orientation change / resize */
 var _resizeTimer;
+var _lastWidth = window.innerWidth;
+
+function _onResize() {
+  var newWidth = window.innerWidth;
+  // Only act if width actually changed (ignore keyboard popup on mobile which triggers resize)
+  if (newWidth === _lastWidth) return;
+  _lastWidth = newWidth;
+
+  // Full redraw — resize() alone doesn't fix cached canvas dimensions after rotation
+  refreshAllCharts();
+  var ap = document.querySelector('.page.active');
+  if (ap) {
+    var id = ap.id.replace('page-', '');
+    if (id === 'trend')   renderTrend();
+    if (id === 'cluster') renderCluster();
+    if (id === 'wow')     renderWow();
+    if (id === 'detail')  renderDetail();
+  }
+}
+
 window.addEventListener('resize', function() {
   clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(_onResize, 250);
+});
+
+// orientationchange fires before the new dimensions are stable — wait for resize to follow
+window.addEventListener('orientationchange', function() {
+  clearTimeout(_resizeTimer);
+  // Give browser time to reflow after rotation (iOS needs ~300ms)
   _resizeTimer = setTimeout(function() {
-    Object.keys(charts).forEach(function(k) { if (charts[k] && charts[k].resize) charts[k].resize(); });
-  }, 200);
+    _lastWidth = -1; // force redraw regardless
+    _onResize();
+  }, 400);
 });
 
 /* ═══════════════════ OVERVIEW ═══════════════════ */
