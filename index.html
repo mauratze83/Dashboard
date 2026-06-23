@@ -34,12 +34,14 @@ body { font-family: var(--sans); background: var(--bg); color: var(--thi); min-h
 /* HEADER */
 header {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 0 24px; height: 52px;
+  padding: 0 24px; height: 52px; gap: 12px;
   background: var(--panel); border-bottom: 1px solid var(--border);
   position: sticky; top: 0; z-index: 200;
 }
-.logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 14px; letter-spacing: .02em; }
-.logo-pip { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+.logo { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; letter-spacing: .02em; flex-shrink: 0; }
+.logo-pip { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); flex-shrink: 0; }
+.logo-text { white-space: nowrap; }
+.header-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .header-meta { font-size: 11px; color: var(--tmid); font-family: var(--mono); }
 .cr-badge {
   font-family: var(--mono); font-size: 12px; font-weight: 500;
@@ -236,13 +238,15 @@ canvas.spark { display: block; }
 @media (max-width: 768px) {
   html { font-size: 13px; }
 
-  /* Header: hide meta text, tighten padding */
+  /* Header: progressively simplify */
   header { padding: 0 14px; height: 48px; gap: 8px; }
   .header-meta { display: none; }
-  .logo { font-size: 13px; gap: 7px; }
-  .cr-badge { font-size: 11px; padding: 3px 9px; }
-  .upload-btn { font-size: 11px; padding: 5px 10px; }
-  .export-btn { display: none; } /* show only in page header on mobile */
+  .logo-text { font-size: 12px; }
+  .cr-badge { font-size: 11px; padding: 3px 8px; }
+  .upload-label::after { content: ' CSV'; }
+  .upload-btn { font-size: 11px; padding: 5px 9px; }
+  .export-btn { padding: 4px 8px; font-size: 11px; }
+  .header-right { gap: 6px; }
 
   /* Nav: horizontally scrollable pill row */
   nav {
@@ -334,8 +338,11 @@ canvas.spark { display: block; }
 @media (max-width: 480px) {
   html { font-size: 12px; }
 
-  header { padding: 0 10px; height: 44px; }
-  .logo span { display: none; } /* hide text, keep pip + "Dashboard" */
+  header { padding: 0 10px; height: 44px; gap: 6px; }
+  .logo-text { display: none; } /* only pip visible, saves space */
+  .cr-badge { display: none; } /* removed — shown in KPI cards */
+  .export-btn { display: none; }
+  .upload-btn { padding: 5px 8px; font-size: 11px; }
   .theme-toggle { width: 26px; height: 14px; }
   .theme-toggle::after { width: 10px; height: 10px; }
   body.light .theme-toggle::after { transform: translateX(12px); }
@@ -571,15 +578,15 @@ body.light .theme-toggle::after { transform: translateX(14px); background: var(-
 <header>
   <div class="logo">
     <div class="logo-pip"></div>
-    Chatbot Performance Dashboard
+    <span class="logo-text">Chatbot Performance</span>
   </div>
   <span class="header-meta" id="headerMeta">KW 2026-01 – 2026-25 &nbsp;·&nbsp; 69 Intents &nbsp;·&nbsp; 2,93M Anfragen</span>
-  <div style="display:flex;align-items:center;gap:10px">
-    <button class="export-btn" onclick="exportPageAsPng()" title="Aktuelle Ansicht als PNG exportieren">⬇ PNG</button>
+  <div class="header-right">
+    <button class="export-btn" onclick="exportPageAsPng()" title="PNG exportieren">⬇</button>
     <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Dark / Light Mode"></button>
-    <div class="cr-badge" id="headerCR">Ø CR: 58,4 %</div>
-    <label class="upload-btn" id="uploadBtn" title="Neue CSV laden">
-      ↑ CSV aktualisieren
+    <div class="cr-badge" id="headerCR">CR: 58,4 %</div>
+    <label class="upload-btn" id="uploadBtn" title="CSV laden">
+      <span class="upload-label">↑ CSV</span>
       <input type="file" accept=".csv,.tsv" id="csvFileInput" style="display:none" onchange="handleCsvUpload(this)">
     </label>
   </div>
@@ -596,11 +603,11 @@ body.light .theme-toggle::after { transform: translateX(14px); background: var(-
 
 <nav>
   <div class="nav-tab active" onclick="showPage('overview', this)">Übersicht</div>
+  <div class="nav-tab" onclick="showPage('wow', this)">WoW</div>
   <div class="nav-tab" onclick="showPage('trend', this)">Wochentrend</div>
   <div class="nav-tab" onclick="showPage('cluster', this)">Clustering</div>
   <div class="nav-tab" onclick="showPage('intents', this)">Intent-Analyse</div>
   <div class="nav-tab" onclick="showPage('detail', this)">Intent-Verlauf</div>
-  <div class="nav-tab" onclick="showPage('wow', this)">WoW</div>
 </nav>
 
 <div id="timeFilterBar">
@@ -2462,7 +2469,7 @@ function buildAndRefresh(rows, fileName) {
 /* ═══════════════════ SWIPE NAVIGATION (mobile) ═══════════════════ */
 (function() {
   var touchStartX = 0, touchStartY = 0;
-  var TAB_ORDER = ['overview','trend','cluster','intents','detail','wow'];
+  var TAB_ORDER = ['overview','wow','trend','cluster','intents','detail'];
 
   document.addEventListener('touchstart', function(e) {
     touchStartX = e.changedTouches[0].screenX;
