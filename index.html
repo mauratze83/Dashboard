@@ -297,10 +297,94 @@ body.drag-active::after {
 .btn.primary:hover { background: var(--accent); color: #fff; }
 .btn.primary:disabled { opacity: .45; pointer-events: none; }
 
-/* Summary text formatting */
-#wowSummaryText strong { color: var(--thi); font-weight: 600; }
-#wowSummaryText .pos { color: var(--green); font-weight: 600; }
-#wowSummaryText .neg { color: var(--red); font-weight: 600; }
+/* ── LIGHT MODE ── */
+body.light {
+  --bg:      #f0f2f7;
+  --panel:   #ffffff;
+  --card:    #ffffff;
+  --hover:   #e8ecf5;
+  --border:  #dde1ee;
+  --borderhi:#c4cbdf;
+  --accent:  #3b6fd4;
+  --accent2: #6b4fc8;
+  --green:   #1a9e6a;
+  --amber:   #c47f00;
+  --red:     #d44040;
+  --thi:     #111827;
+  --tmid:    #4b5470;
+  --tlo:     #9aa0b8;
+}
+body.light .logo-pip { box-shadow: 0 0 6px var(--accent); }
+body.light .cr-badge { background: rgba(26,158,106,.1); border-color: rgba(26,158,106,.3); }
+body.light .upload-btn { background: rgba(59,111,212,.08); }
+body.light .tag-auftrag  { background: rgba(59,111,212,.1);  color: var(--accent); }
+body.light .tag-problem  { background: rgba(212,64,64,.08);  color: var(--red); }
+body.light .tag-info     { background: rgba(26,158,106,.1);  color: var(--green); }
+body.light .tag-korrektur{ background: rgba(196,127,0,.1);   color: var(--amber); }
+body.light .tag-kuendigung{ background: rgba(107,79,200,.1); color: var(--accent2); }
+body.light .tag-hardware { background: rgba(59,111,212,.08); color: #3b6fd4; }
+body.light .tag-status   { background: rgba(26,158,106,.08); color: #1a9e6a; }
+body.light .tag-other    { background: rgba(0,0,0,.05);      color: var(--tmid); }
+body.light .pill-up   { background: rgba(26,158,106,.1);  border-color: rgba(26,158,106,.3); }
+body.light .pill-down { background: rgba(212,64,64,.08);  border-color: rgba(212,64,64,.3); }
+body.light .pill-flat { background: rgba(0,0,0,.04);      border-color: var(--border); }
+body.light .band.green { background: rgba(26,158,106,.07);  border-color: rgba(26,158,106,.25); }
+body.light .band.red   { background: rgba(212,64,64,.06);   border-color: rgba(212,64,64,.2); }
+body.light .kpi-delta.up   { color: var(--green); }
+body.light .kpi-delta.down { color: var(--red); }
+body.light input[type=password], body.light select { background: #f7f9fc; }
+
+/* Theme toggle button */
+.theme-toggle {
+  width: 32px; height: 18px; border-radius: 9px; border: 1px solid var(--border);
+  background: var(--hover); cursor: pointer; position: relative; transition: background .2s;
+  flex-shrink: 0;
+}
+.theme-toggle::after {
+  content: '';
+  position: absolute; top: 2px; left: 2px;
+  width: 12px; height: 12px; border-radius: 50%;
+  background: var(--tmid); transition: transform .2s, background .2s;
+}
+body.light .theme-toggle { background: rgba(59,111,212,.15); border-color: var(--accent); }
+body.light .theme-toggle::after { transform: translateX(14px); background: var(--accent); }
+
+/* ── CLUSTERING TAB ── */
+.cluster-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; margin-bottom: 20px; }
+.cluster-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
+.cluster-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.cluster-name { font-size: 12px; font-weight: 700; }
+.cluster-cr { font-family: var(--mono); font-size: 20px; font-weight: 500; }
+.cluster-bar-bg { height: 5px; background: var(--border); border-radius: 3px; margin-bottom: 10px; }
+.cluster-bar-fill { height: 100%; border-radius: 3px; transition: width .4s; }
+.cluster-intents { font-size: 10px; color: var(--tlo); line-height: 1.6; }
+.cluster-intents span { display: inline-block; margin-right: 6px; color: var(--tmid); }
+
+/* ── ANOMALY BAND ── */
+.anomaly-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+.anomaly-item {
+  display: flex; align-items: center; gap: 12px; padding: 10px 14px;
+  border-radius: 8px; border: 1px solid var(--border); background: var(--card); font-size: 12px;
+}
+.anomaly-item.spike  { border-left: 3px solid var(--red); }
+.anomaly-item.jump   { border-left: 3px solid var(--green); }
+.anomaly-item.vol    { border-left: 3px solid var(--amber); }
+.anomaly-week { font-family: var(--mono); font-size: 10px; color: var(--tlo); min-width: 40px; }
+.anomaly-intent { font-weight: 600; color: var(--thi); min-width: 180px; }
+.anomaly-desc { color: var(--tmid); }
+.anomaly-val { font-family: var(--mono); font-size: 11px; font-weight: 600; margin-left: auto; }
+
+/* Export button */
+.export-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 11px; border-radius: 6px; border: 1px solid var(--border);
+  background: var(--card); color: var(--tmid); font-size: 11px; font-weight: 500;
+  cursor: pointer; transition: all .15s; font-family: var(--sans);
+}
+.export-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* WoW week picker */
+#wowWeekPicker { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 </style>
 </head>
 <body>
@@ -312,6 +396,8 @@ body.drag-active::after {
   </div>
   <span class="header-meta" id="headerMeta">KW 2026-01 – 2026-25 &nbsp;·&nbsp; 69 Intents &nbsp;·&nbsp; 2,93M Anfragen</span>
   <div style="display:flex;align-items:center;gap:10px">
+    <button class="export-btn" onclick="exportPageAsPng()" title="Aktuelle Ansicht als PNG exportieren">⬇ PNG</button>
+    <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Dark / Light Mode"></button>
     <div class="cr-badge" id="headerCR">Ø CR: 58,4 %</div>
     <label class="upload-btn" id="uploadBtn" title="Neue CSV laden">
       ↑ CSV aktualisieren
@@ -332,6 +418,7 @@ body.drag-active::after {
 <nav>
   <div class="nav-tab active" onclick="showPage('overview', this)">Übersicht</div>
   <div class="nav-tab" onclick="showPage('trend', this)">Wochentrend</div>
+  <div class="nav-tab" onclick="showPage('cluster', this)">Clustering</div>
   <div class="nav-tab" onclick="showPage('intents', this)">Intent-Analyse</div>
   <div class="nav-tab" onclick="showPage('detail', this)">Intent-Verlauf</div>
   <div class="nav-tab" onclick="showPage('wow', this)">WoW</div>
@@ -382,15 +469,8 @@ body.drag-active::after {
   </div>
 
   <!-- Highlights -->
-  <div class="sec-label">Highlights</div>
-  <div class="band green">
-    <span class="band-icon">🏆</span>
-    <span class="band-text">Beste CR: <strong>Info_Catweazle</strong> mit <strong>86,7 %</strong> · <strong>Kuendigung_Zusatzdienst</strong> mit <strong>82,7 %</strong></span>
-  </div>
-  <div class="band red" style="margin-bottom:16px">
-    <span class="band-icon">⚠️</span>
-    <span class="band-text">Niedrigste CR: <strong>Auftrag_Kuendigungsruecknahme_Winback</strong> mit nur <strong>5,5 %</strong> · <strong>Korrektur_Vertrag</strong> mit <strong>22,4 %</strong> · <strong>Hardware_Lieferung</strong> mit <strong>29,8 %</strong></span>
-  </div>
+  <div class="sec-label">Highlights & Anomalien</div>
+  <div id="ovHighlights" class="anomaly-list"></div>
 
   <div class="grid2">
     <div class="card">
@@ -524,6 +604,28 @@ body.drag-active::after {
     </div>
   </div>
 </div>
+<!-- ═══════ CLUSTERING ═══════ -->
+<div class="page" id="page-cluster">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+    <div>
+      <div style="font-size:18px;font-weight:700;color:var(--thi)">Intent Clustering</div>
+      <div style="font-size:12px;color:var(--tmid);margin-top:2px">Intents nach Kategorie gruppiert — Ø CR und Volumen je Gruppe</div>
+    </div>
+    <button class="export-btn" onclick="exportPageAsPng()">⬇ PNG</button>
+  </div>
+  <div class="cluster-grid" id="clusterGrid"></div>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-head"><div class="card-title">CR nach Kategorie</div></div>
+      <div class="chart-wrap h280"><canvas id="clusterCrBar"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">Volumen nach Kategorie</div></div>
+      <div class="chart-wrap h280"><canvas id="clusterVolBar"></canvas></div>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════ WoW ═══════ -->
 <div class="page" id="page-wow">
 
@@ -567,6 +669,13 @@ body.drag-active::after {
   <div class="wow-summary" id="wowKpis"></div>
 
   <div class="filters" style="margin-bottom:16px">
+    <span class="filter-label">Vergleich:</span>
+    <div id="wowWeekPicker">
+      <select id="wowWeekA" onchange="rebuildWowFromWeeks()"></select>
+      <span style="color:var(--tlo);font-size:11px">vs.</span>
+      <select id="wowWeekB" onchange="rebuildWowFromWeeks()"></select>
+    </div>
+    <div class="tf-sep"></div>
     <span class="filter-label">Min. Volumen-Shift:</span>
     <select id="wowVolThresh" onchange="renderWow()">
       <option value="0">Alle</option>
@@ -586,6 +695,7 @@ body.drag-active::after {
     <button class="btn"         id="wowBtnVol"  onclick="setWowView('vol',  this)">Volumen</button>
     <button class="btn"         id="wowBtnCR"   onclick="setWowView('cr',   this)">CR</button>
     <button class="btn"         id="wowBtnWarn" onclick="setWowView('warn', this)">⚠ Auffällig</button>
+    <button class="export-btn" onclick="exportPageAsPng()" style="margin-left:8px">⬇ PNG</button>
   </div>
 
   <div class="grid2" style="margin-bottom:16px">
@@ -733,31 +843,33 @@ function applyPreset(n, el) {
   document.getElementById('tfTo').value   = filterTo;
   updateRangeInfo();
   refreshAllCharts();
+  pushUrlState();
 }
 
 function applyCustomRange() {
-  document.querySelectorAll('.tf-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tf-btn').forEach(function(b) { b.classList.remove('active'); });
   filterFrom = document.getElementById('tfFrom').value;
   filterTo   = document.getElementById('tfTo').value;
-  // Ensure from <= to
   if (filterFrom > filterTo) {
     filterTo = filterFrom;
     document.getElementById('tfTo').value = filterTo;
   }
   updateRangeInfo();
   refreshAllCharts();
+  pushUrlState();
 }
 
 function refreshAllCharts() {
-  Object.keys(charts).forEach(k => { if (charts[k]) { charts[k].destroy(); delete charts[k]; } });
+  Object.keys(charts).forEach(function(k) { if (charts[k]) { charts[k].destroy(); delete charts[k]; } });
   renderOverview();
   renderIntentTable();
-  const activePage = document.querySelector('.page.active');
-  if (activePage) {
-    const id = activePage.id.replace('page-', '');
-    if (id === 'trend') renderTrend();
-    if (id === 'detail') renderDetail();
-    // WoW intentionally not re-filtered (always last 2 weeks)
+  var ap = document.querySelector('.page.active');
+  if (ap) {
+    var id = ap.id.replace('page-', '');
+    if (id === 'trend')   renderTrend();
+    if (id === 'cluster') renderCluster();
+    if (id === 'detail')  renderDetail();
+    // WoW: intentionally not re-filtered (uses its own week picker)
   }
 }
 
@@ -888,6 +1000,8 @@ function renderOverview() {
     },
     options: baseOpts({ plugins: { ...baseOpts().plugins, legend: { display: false } } })
   });
+
+  detectAnomalies();
 }
 
 /* ═══════════════════ TREND ═══════════════════ */
@@ -1503,17 +1617,401 @@ function formatSummary(text) {
     .replace(/\n/g, '<br>');
 }
 
+/* ═══════════════════ DARK / LIGHT MODE ═══════════════════ */
+function toggleTheme() {
+  document.body.classList.toggle('light');
+  const isLight = document.body.classList.contains('light');
+  sessionStorage.setItem('theme', isLight ? 'light' : 'dark');
+  // Redraw charts so colors update
+  refreshAllCharts();
+  if (document.getElementById('page-cluster').classList.contains('active')) renderCluster();
+}
+(function() {
+  if (sessionStorage.getItem('theme') === 'light') document.body.classList.add('light');
+})();
+
+/* ═══════════════════ CLUSTERING ═══════════════════ */
+const CLUSTERS = {
+  'Auftrag':   { label: 'Auftrag',    color: '#5b8dee' },
+  'Problem':   { label: 'Problem',    color: '#f06060' },
+  'Info':      { label: 'Info',       color: '#30d896' },
+  'Korrektur': { label: 'Korrektur',  color: '#f5a623' },
+  'Kuendigung':{ label: 'Kündigung',  color: '#8b6cf7' },
+  'Hardware':  { label: 'Hardware',   color: '#38c4d4' },
+  'Status':    { label: 'Status',     color: '#a8d672' },
+  'Sonstige':  { label: 'Sonstige',   color: '#7a84a0' },
+};
+
+function getCluster(intent) {
+  for (const key of Object.keys(CLUSTERS)) {
+    if (intent.startsWith(key)) return key;
+  }
+  return 'Sonstige';
+}
+
+function buildClusterData() {
+  const fd = getFD();
+  const groups = {};
+  Object.keys(CLUSTERS).forEach(k => groups[k] = { inv: 0, con: 0, intents: [] });
+  fd.intent_totals.forEach(d => {
+    const g = getCluster(d.i);
+    groups[g].inv += d.inv;
+    groups[g].con += d.con;
+    groups[g].intents.push(d);
+  });
+  return Object.entries(groups)
+    .filter(([, v]) => v.inv > 0)
+    .map(([key, v]) => ({
+      key, label: CLUSTERS[key].label, color: CLUSTERS[key].color,
+      inv: v.inv, con: v.con,
+      cr: v.inv > 0 ? Math.round(v.con / v.inv * 1000) / 10 : 0,
+      intents: v.intents.sort((a, b) => b.inv - a.inv)
+    }))
+    .sort((a, b) => b.inv - a.inv);
+}
+
+function renderCluster() {
+  const clusters = buildClusterData();
+  const maxCR  = Math.max(...clusters.map(c => c.cr));
+
+  // Cards
+  document.getElementById('clusterGrid').innerHTML = clusters.map(c => {
+    const crCls = c.cr >= 70 ? 'cr-high' : c.cr >= 40 ? 'cr-mid' : 'cr-low';
+    const topIntents = c.intents.slice(0, 5)
+      .map(d => '<span>' + d.i.replace(c.key + '_', '') + '</span>')
+      .join('');
+    return '<div class="cluster-card">' +
+      '<div class="cluster-header">' +
+        '<span class="cluster-name" style="color:' + c.color + '">' + c.label + '</span>' +
+        '<span style="font-size:10px;color:var(--tlo);font-family:var(--mono)">' + c.intents.length + ' Intents · ' + fmtK(c.inv) + '</span>' +
+      '</div>' +
+      '<div class="cluster-cr ' + crCls + '">' + c.cr.toFixed(1) + ' %</div>' +
+      '<div class="cluster-bar-bg"><div class="cluster-bar-fill" style="width:' + (c.cr / maxCR * 100).toFixed(1) + '%;background:' + c.color + '"></div></div>' +
+      '<div class="cluster-intents">' + topIntents + (c.intents.length > 5 ? '<span style="color:var(--tlo)">+' + (c.intents.length - 5) + ' weitere</span>' : '') + '</div>' +
+    '</div>';
+  }).join('');
+
+  // Charts
+  destroy('clusterCrBar');
+  charts.clusterCrBar = new Chart(document.getElementById('clusterCrBar'), {
+    type: 'bar',
+    data: {
+      labels: clusters.map(c => c.label),
+      datasets: [{ label: 'Ø CR %', data: clusters.map(c => c.cr),
+        backgroundColor: clusters.map(c => c.color + 'aa'),
+        borderColor: clusters.map(c => c.color),
+        borderWidth: 1, borderRadius: 4 }]
+    },
+    options: baseOpts({
+      plugins: { ...baseOpts().plugins, legend: { display: false } },
+      scales: { x: baseOpts().scales.x,
+        y: { ...baseOpts().scales.y, min: 0, max: 100, ticks: { ...baseOpts().scales.y.ticks, callback: function(v) { return v + ' %'; } } }
+      }
+    })
+  });
+
+  destroy('clusterVolBar');
+  charts.clusterVolBar = new Chart(document.getElementById('clusterVolBar'), {
+    type: 'bar',
+    data: {
+      labels: clusters.map(c => c.label),
+      datasets: [{ label: 'Involved', data: clusters.map(c => c.inv),
+        backgroundColor: clusters.map(c => c.color + 'aa'),
+        borderColor: clusters.map(c => c.color),
+        borderWidth: 1, borderRadius: 4 }]
+    },
+    options: baseOpts({
+      plugins: { ...baseOpts().plugins, legend: { display: false } },
+      scales: { x: baseOpts().scales.x,
+        y: { ...baseOpts().scales.y, ticks: { ...baseOpts().scales.y.ticks, callback: function(v) { return (v/1000).toFixed(0) + 'K'; } } }
+      }
+    })
+  });
+}
+
+/* ═══════════════════ ANOMALY DETECTION ═══════════════════ */
+function detectAnomalies() {
+  const fd = getFD();
+  const wt = fd.weekly_totals;
+  const anomalies = [];
+
+  // 1. Weekly CR jump/drop (>3 PP vs previous week)
+  for (let i = 1; i < wt.length; i++) {
+    const delta = wt[i].cr - wt[i-1].cr;
+    if (Math.abs(delta) >= 3) {
+      anomalies.push({
+        type: delta > 0 ? 'jump' : 'spike',
+        week: 'KW' + wt[i].w.split('-')[1],
+        intent: 'Gesamt-CR',
+        desc: 'Wöchentliche CR-Änderung: ' + wt[i-1].cr.toFixed(1) + '% → ' + wt[i].cr.toFixed(1) + '%',
+        val: (delta > 0 ? '+' : '') + delta.toFixed(1) + ' PP'
+      });
+    }
+  }
+
+  // 2. Per-intent anomalies from top10 weekly CR data
+  DATA.top10_names.forEach(function(name) {
+    const series = DATA.intent_weekly_cr[name];
+    if (!series) return;
+    // Use all available weekly data — mean and stddev
+    const valid = series.filter(function(v) { return v !== null && !isNaN(v); });
+    if (valid.length < 4) return;
+    const mean = valid.reduce(function(s, v) { return s + v; }, 0) / valid.length;
+    const std  = Math.sqrt(valid.reduce(function(s, v) { return s + Math.pow(v - mean, 2); }, 0) / valid.length);
+    series.forEach(function(cr, idx) {
+      if (cr === null || isNaN(cr)) return;
+      const zScore = std > 0 ? Math.abs(cr - mean) / std : 0;
+      if (zScore > 2.0) {
+        const week = DATA.weeks[idx] ? 'KW' + DATA.weeks[idx].split('-')[1] : '?';
+        anomalies.push({
+          type: cr > mean ? 'jump' : 'spike',
+          week: week,
+          intent: name.replace(/_/g, ' '),
+          desc: 'Ausreißer (z=' + zScore.toFixed(1) + '): Ø ' + mean.toFixed(1) + '% → ' + cr.toFixed(1) + '%',
+          val: (cr > mean ? '+' : '') + (cr - mean).toFixed(1) + ' PP'
+        });
+      }
+    });
+  });
+
+  // 3. Intents with critically low CR (< 20% with > 500 Anfragen)
+  fd.intent_totals.filter(function(d) { return d.cr < 20 && d.inv > 500; })
+    .sort(function(a, b) { return a.cr - b.cr; })
+    .slice(0, 3)
+    .forEach(function(d) {
+      anomalies.push({
+        type: 'spike',
+        week: 'Gesamt',
+        intent: d.i.replace(/_/g, ' '),
+        desc: 'Kritisch niedrige CR — ' + fmtK(d.inv) + ' Anfragen nicht contained',
+        val: d.cr.toFixed(1) + ' %'
+      });
+    });
+
+  // 4. Best performers (CR > 80% with > 1000 Anfragen)
+  fd.intent_totals.filter(function(d) { return d.cr > 80 && d.inv > 1000; })
+    .sort(function(a, b) { return b.cr - a.cr; })
+    .slice(0, 2)
+    .forEach(function(d) {
+      anomalies.push({
+        type: 'jump',
+        week: 'Gesamt',
+        intent: d.i.replace(/_/g, ' '),
+        desc: 'Top-Performer — ' + fmtK(d.inv) + ' Anfragen',
+        val: d.cr.toFixed(1) + ' %'
+      });
+    });
+
+  // Sort: spikes first, then jumps, limit 8
+  anomalies.sort(function(a, b) {
+    if (a.type === 'spike' && b.type !== 'spike') return -1;
+    if (a.type !== 'spike' && b.type === 'spike') return 1;
+    return 0;
+  });
+
+  const icons = { spike: '⚠️', jump: '✅', vol: '📈' };
+  const el = document.getElementById('ovHighlights');
+  if (!el) return;
+  el.innerHTML = anomalies.slice(0, 8).map(function(a) {
+    return '<div class="anomaly-item ' + a.type + '">' +
+      '<span style="font-size:14px">' + (icons[a.type] || '•') + '</span>' +
+      '<span class="anomaly-week">' + a.week + '</span>' +
+      '<span class="anomaly-intent">' + a.intent + '</span>' +
+      '<span class="anomaly-desc">' + a.desc + '</span>' +
+      '<span class="anomaly-val ' + (a.type === 'jump' ? 'cr-high' : 'cr-low') + '">' + a.val + '</span>' +
+    '</div>';
+  }).join('');
+}
+
+/* ═══════════════════ PNG EXPORT ═══════════════════ */
+function exportPageAsPng() {
+  showToast('Screenshot wird erstellt…', '');
+  var script = document.createElement('script');
+  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+  script.onload = function() {
+    var target = document.querySelector('.page.active') || document.body;
+    html2canvas(target, {
+      backgroundColor: getComputedStyle(document.body).getPropertyValue('--bg').trim() || '#0b0e16',
+      scale: 2,
+      useCORS: true,
+      logging: false
+    }).then(function(canvas) {
+      var link = document.createElement('a');
+      var activeTab = (document.querySelector('.nav-tab.active') || {textContent:'dashboard'}).textContent.trim();
+      link.download = 'dashboard-' + activeTab + '-' + new Date().toISOString().slice(0,10) + '.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      showToast('✓ PNG exportiert', 'success');
+    }).catch(function(e) {
+      showToast('Export fehlgeschlagen: ' + e.message, 'error');
+    });
+  };
+  script.onerror = function() { showToast('html2canvas konnte nicht geladen werden', 'error'); };
+  document.head.appendChild(script);
+}
+
+/* ═══════════════════ URL PARAMETERS ═══════════════════ */
+function pushUrlState() {
+  var params = new URLSearchParams();
+  var activePage = (document.querySelector('.page.active') || {}).id;
+  if (activePage) params.set('tab', activePage.replace('page-', ''));
+  var intent = document.getElementById('detailIntent');
+  if (intent && intent.value) params.set('intent', intent.value);
+  var from = filterFrom; var to = filterTo;
+  if (from) params.set('from', from);
+  if (to)   params.set('to',   to);
+  if (document.body.classList.contains('light')) params.set('theme', 'light');
+  history.replaceState(null, '', '?' + params.toString());
+}
+
+function readUrlState() {
+  var params = new URLSearchParams(window.location.search);
+  var tab    = params.get('tab');
+  var intent = params.get('intent');
+  var from   = params.get('from');
+  var to     = params.get('to');
+  var theme  = params.get('theme');
+
+  if (theme === 'light') document.body.classList.add('light');
+
+  if (from && DATA.weeks.includes(from)) {
+    filterFrom = from;
+    document.getElementById('tfFrom').value = from;
+    document.querySelectorAll('.tf-btn').forEach(function(b) { b.classList.remove('active'); });
+    document.querySelector('.tf-btn[onclick*="0, this"]') && document.querySelector('.tf-btn[onclick*="0, this"]').classList.add('active');
+  }
+  if (to && DATA.weeks.includes(to)) {
+    filterTo = to;
+    document.getElementById('tfTo').value = to;
+  }
+
+  if (tab) {
+    var tabEl = Array.from(document.querySelectorAll('.nav-tab')).find(function(t) {
+      return t.getAttribute('onclick') && t.getAttribute('onclick').includes("'" + tab + "'");
+    });
+    if (tabEl) showPage(tab, tabEl);
+  }
+
+  if (intent) {
+    populateDetailSelect(intent);
+    renderDetail();
+  }
+
+  updateRangeInfo();
+}
+
+/* ═══════════════════ WoW WEEK PICKER ═══════════════════ */
+function populateWowWeekPicker() {
+  var weeks = DATA.weeks;
+  var selA = document.getElementById('wowWeekA');
+  var selB = document.getElementById('wowWeekB');
+  if (!selA || !selB) return;
+  var opts = weeks.map(function(w) { return '<option value="' + w + '">KW ' + w.split('-')[1] + '</option>'; }).join('');
+  selA.innerHTML = opts;
+  selB.innerHTML = opts;
+  selA.value = weeks[weeks.length - 2] || weeks[0];
+  selB.value = weeks[weeks.length - 1];
+}
+
+function rebuildWowFromWeeks() {
+  var selA = document.getElementById('wowWeekA');
+  var selB = document.getElementById('wowWeekB');
+  if (!selA || !selB) return;
+  var wA = selA.value;
+  var wB = selB.value;
+  if (!wA || !wB || wA === wB) return;
+
+  var NOISE = new Set(['None','Saleslivechat','Spam','Kein Topintent','Catchphrasedecease','Chatimmobilienwirtschaft','Surveyimmobilienwirtschaft','']);
+  // We need raw per-week data — reconstruct from WEEKLY_RAW and intent_weekly_cr
+  var rowsA = {}; var rowsB = {};
+
+  // From WEEKLY_RAW
+  Object.keys(WEEKLY_RAW).forEach(function(name) {
+    if (WEEKLY_RAW[name][wA]) rowsA[name] = { inv: WEEKLY_RAW[name][wA][0], con: WEEKLY_RAW[name][wA][1], cr: WEEKLY_RAW[name][wA][2] };
+    if (WEEKLY_RAW[name][wB]) rowsB[name] = { inv: WEEKLY_RAW[name][wB][0], con: WEEKLY_RAW[name][wB][1], cr: WEEKLY_RAW[name][wB][2] };
+  });
+
+  // From intent_weekly_cr (top10) — approximate inv from weekly_totals proportion
+  var idxA = DATA.weeks.indexOf(wA);
+  var idxB = DATA.weeks.indexOf(wB);
+  var wtA = idxA >= 0 ? DATA.weekly_totals[idxA] : null;
+  var wtB = idxB >= 0 ? DATA.weekly_totals[idxB] : null;
+  var totalAll = DATA.weekly_totals.reduce(function(s,d) { return s+d.inv; }, 0);
+
+  DATA.top10_names.forEach(function(name) {
+    var series = DATA.intent_weekly_cr[name];
+    var tot = DATA.intent_totals.find(function(d) { return d.i === name; });
+    if (!series || !tot) return;
+    var crA = idxA >= 0 ? series[idxA] : null;
+    var crB = idxB >= 0 ? series[idxB] : null;
+    if (crA !== null && crA !== undefined && !rowsA[name] && wtA) {
+      var invA = totalAll > 0 ? Math.round(tot.inv * wtA.inv / totalAll) : 0;
+      rowsA[name] = { inv: invA, con: Math.round(invA * crA / 100), cr: crA };
+    }
+    if (crB !== null && crB !== undefined && !rowsB[name] && wtB) {
+      var invB = totalAll > 0 ? Math.round(tot.inv * wtB.inv / totalAll) : 0;
+      rowsB[name] = { inv: invB, con: Math.round(invB * crB / 100), cr: crB };
+    }
+  });
+
+  var allIntents = new Set(Object.keys(rowsA).concat(Object.keys(rowsB)));
+  var wow = [];
+  allIntents.forEach(function(intent) {
+    if (NOISE.has(intent)) return;
+    var l = rowsB[intent] || { inv: 0, con: 0, cr: 0 };
+    var p = rowsA[intent] || { inv: 0, con: 0, cr: 0 };
+    if (l.inv === 0 && p.inv === 0) return;
+    wow.push({
+      i: intent,
+      inv_cur: l.inv, con_cur: l.con, cr_cur: Math.round(l.cr * 10) / 10,
+      inv_prev: p.inv, con_prev: p.con, cr_prev: Math.round(p.cr * 10) / 10,
+      inv_delta: l.inv - p.inv,
+      inv_delta_pct: p.inv > 0 ? Math.round((l.inv - p.inv) / p.inv * 1000) / 10 : 0,
+      cr_delta: Math.round((l.cr - p.cr) * 10) / 10
+    });
+  });
+
+  WOW_DATA.prev = wA;
+  WOW_DATA.last = wB;
+  WOW_DATA.wow  = wow;
+
+  wowSeen.clear();
+  wowDeduped.length = 0;
+  wow.forEach(function(r) {
+    if (!wowSeen.has(r.i) && r.inv_cur > 0) { wowSeen.add(r.i); wowDeduped.push(r); }
+  });
+
+  // Update table headers
+  var kwA = wA.split('-')[1]; var kwB = wB.split('-')[1];
+  var wowHead = document.querySelector('#page-wow .wow-table-wrap thead tr');
+  if (wowHead) wowHead.innerHTML =
+    '<th>Intent</th><th>Involved KW' + kwA + '</th><th>Involved KW' + kwB + '</th>' +
+    '<th>Volumen-Shift</th><th>CR KW' + kwA + '</th><th>CR KW' + kwB + '</th><th>CR-Shift</th><th>Signal</th>';
+
+  // Update chart subtitles
+  var volCard = document.querySelector('#page-wow .grid2 .card:first-child .card-sub');
+  var crCard  = document.querySelector('#page-wow .grid2 .card:last-child .card-sub');
+  if (volCard) volCard.textContent = 'Absolute Änderung Involved KW' + kwA + '→KW' + kwB;
+  if (crCard)  crCard.textContent  = 'Änderung Containment Rate in Prozentpunkten';
+
+  renderWow();
+  pushUrlState();
+}
+
 /* ═══════════════════ NAV ═══════════════════ */
 let activePage = 'overview';
 function showPage(id, el) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+  document.querySelectorAll('.nav-tab').forEach(function(t) { t.classList.remove('active'); });
   document.getElementById('page-' + id).classList.add('active');
-  el.classList.add('active');
+  if (el) el.classList.add('active');
+  activePage = id;
   if (id === 'trend' && !charts.trendCR) renderTrend();
+  if (id === 'cluster') renderCluster();
   if (id === 'intents') renderIntentTable();
   if (id === 'detail') { populateDetailSelect(); renderDetail(); }
-  if (id === 'wow') renderWow();
+  if (id === 'wow') { populateWowWeekPicker(); renderWow(); }
+  pushUrlState();
 }
 
 /* ═══════════════════ UTILS ═══════════════════ */
@@ -1770,8 +2268,10 @@ function buildAndRefresh(rows, fileName) {
 
 /* ═══════════════════ INIT ═══════════════════ */
 populateTimeFilter();
+populateWowWeekPicker();
 renderOverview();
 renderIntentTable();
+readUrlState();
 </script>
 </body>
 </html>
