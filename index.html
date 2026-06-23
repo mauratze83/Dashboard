@@ -987,6 +987,14 @@ function crBarColor(cr) {
   return RED;
 }
 
+/* navigate to detail tab for a specific intent */
+function openInDetail(intent) {
+  populateDetailSelect(intent);
+  renderDetail();
+  const detailTab = [...document.querySelectorAll('.nav-tab')].find(t => t.textContent.trim() === 'Intent-Verlauf');
+  showPage('detail', detailTab);
+}
+
 function renderIntentTable() {
   const fd = getFD();
   const cat = document.getElementById('catFilter').value;
@@ -1008,10 +1016,11 @@ function renderIntentTable() {
     const tag = getTag(d.i);
     const label = d.i.split('_').slice(1).join(' ') || d.i;
     const cat0 = d.i.split('_')[0];
-    return `<tr>
+    return `<tr style="cursor:pointer" onclick="openInDetail('${d.i}')" title="Intent-Verlauf öffnen →">
       <td class="intent-name">
         <span class="tag tag-${tag}">${cat0}</span>
         ${label}
+        <span style="float:right;color:var(--tlo);font-size:10px;margin-top:1px">→</span>
       </td>
       <td>${fmtK(d.inv)}</td>
       <td>${fmtK(d.con)}</td>
@@ -1036,54 +1045,67 @@ function renderIntentTable() {
 
 const WEEKLY_RAW = {"Auftrag_Esim_Allgemein":{"2026-10":[2138,1365,63.8],"2026-11":[2204,1373,62.3],"2026-12":[2103,1350,64.2],"2026-13":[2136,1381,64.6],"2026-14":[2160,1443,66.8],"2026-15":[2060,1399,67.9],"2026-16":[1944,1286,66.2],"2026-17":[1814,1211,66.8],"2026-18":[1526,975,63.9],"2026-19":[1896,1282,67.6],"2026-20":[1555,1052,67.6],"2026-21":[1596,1072,67.2],"2026-22":[1583,1021,64.5],"2026-23":[2524,1693,67.1],"2026-24":[2504,1589,63.5],"2026-25":[2318,1576,68.0]},"Problem_Netz_Internet":{"2026-01":[8319,5709,68.6],"2026-02":[10400,6996,67.3],"2026-03":[11124,7613,68.4],"2026-04":[10344,7051,68.2],"2026-05":[9821,6641,67.6],"2026-06":[9151,6297,68.8],"2026-07":[8326,5813,69.8],"2026-08":[8365,5791,69.2],"2026-09":[10203,7191,70.5],"2026-10":[9626,8058,83.7],"2026-11":[8933,7354,82.3],"2026-12":[9028,7330,81.2],"2026-13":[8912,7327,82.2],"2026-14":[7781,6462,83.0],"2026-15":[7458,6158,82.6],"2026-16":[8280,6847,82.7],"2026-17":[8296,6855,82.6],"2026-18":[7337,6073,82.8],"2026-19":[10641,8764,82.4],"2026-20":[8394,6902,82.2],"2026-21":[8979,7498,83.5],"2026-22":[8491,7192,84.7],"2026-23":[9151,7606,83.1],"2026-24":[8877,7300,82.2],"2026-25":[11669,9764,83.7]},"Info_Kontakt":{"2026-01":[5909,3676,62.2],"2026-02":[6606,4130,62.5],"2026-03":[7620,4746,62.3],"2026-04":[7295,4815,66.0],"2026-05":[7210,4896,67.9],"2026-06":[6989,4696,67.2],"2026-07":[6417,4634,72.2],"2026-08":[6472,4732,73.1],"2026-09":[8186,5929,72.4],"2026-10":[8082,5910,73.1],"2026-11":[7851,5733,73.0],"2026-12":[8063,6090,75.5],"2026-13":[7791,5817,74.7],"2026-14":[7109,5345,75.2],"2026-15":[6741,5012,74.4],"2026-16":[7237,5444,75.2],"2026-17":[7398,5632,76.1],"2026-18":[6388,4530,70.9],"2026-19":[9698,6381,65.8],"2026-20":[7378,5300,71.8],"2026-21":[8050,5925,73.6],"2026-22":[7567,5336,70.5],"2026-23":[8259,5979,72.4],"2026-24":[7707,5705,74.0],"2026-25":[8205,5931,72.3]},"Auftrag_Portierung":{"2026-01":[8679,5133,59.1],"2026-02":[8893,5272,59.3],"2026-03":[9521,5466,57.4],"2026-04":[8616,4843,56.2],"2026-05":[8699,4967,57.1],"2026-06":[8119,3963,48.8],"2026-07":[7382,3647,49.4],"2026-08":[7439,3710,49.9],"2026-09":[9154,4621,50.5],"2026-10":[8426,4154,49.3],"2026-11":[8302,3868,46.6],"2026-12":[8253,4210,51.0],"2026-13":[7876,4361,55.4],"2026-14":[7162,3960,55.3],"2026-15":[6851,3904,57.0],"2026-16":[7409,4061,54.8],"2026-17":[7459,4009,53.7],"2026-18":[6454,3168,49.1],"2026-19":[8952,4421,49.4],"2026-20":[7773,3955,50.9],"2026-21":[8038,4075,50.7],"2026-22":[7614,3959,52.0],"2026-23":[8457,4228,50.0],"2026-24":[8268,4294,51.9],"2026-25":[9315,4745,50.9]},"Korrektur_Rechnung":{"2026-01":[3573,1136,31.8],"2026-02":[4665,1497,32.1],"2026-03":[5099,1271,24.9],"2026-04":[4740,1109,23.4],"2026-05":[4675,1033,22.1],"2026-06":[4278,963,22.5],"2026-07":[3785,810,21.4],"2026-08":[3815,866,22.7],"2026-09":[4769,1059,22.2],"2026-10":[4611,1035,22.4],"2026-11":[4423,820,18.5],"2026-12":[4388,891,20.3],"2026-13":[4327,974,22.5],"2026-14":[3881,904,23.3],"2026-15":[3576,894,25.0],"2026-16":[3762,895,23.8],"2026-17":[3736,934,25.0],"2026-18":[3226,800,24.8],"2026-19":[4626,1218,26.3],"2026-20":[3748,851,22.7],"2026-21":[3820,879,23.0],"2026-22":[3651,814,22.3],"2026-23":[4154,997,24.0],"2026-24":[4007,944,23.6],"2026-25":[4765,1069,22.4]}};
 
-function populateDetailSelect() {
+function populateDetailSelect(selectIntent) {
   const sel = document.getElementById('detailIntent');
+  const current = selectIntent || sel.value;
   sel.innerHTML = DATA.intent_totals
     .filter(d => d.inv > 0)
     .sort((a,b) => b.inv - a.inv)
-    .map(d => `<option value="${d.i}">${d.i.replace(/_/g,' ')}</option>`)
+    .map(d => `<option value="${d.i}" ${d.i === current ? 'selected' : ''}>${d.i.replace(/_/g,' ')}</option>`)
     .join('');
+  if (selectIntent) sel.value = selectIntent;
 }
 
 function renderDetail() {
   const intent = document.getElementById('detailIntent').value;
   if (!intent) return;
+
+  // Always use full DATA (not filtered) for per-intent weekly breakdown
   const totals = DATA.intent_totals.find(d => d.i === intent);
+  if (!totals) return;
 
   // KPIs
-  const kpis = document.getElementById('detailKpis');
   const crClass = totals.cr >= 70 ? 'green' : totals.cr >= 40 ? 'amber' : 'red';
-  kpis.innerHTML = `
+  document.getElementById('detailKpis').innerHTML = `
     <div class="kpi"><div class="kpi-label">Gesamt Involved</div><div class="kpi-value">${fmtK(totals.inv)}</div></div>
     <div class="kpi"><div class="kpi-label">Gesamt Contained</div><div class="kpi-value green">${fmtK(totals.con)}</div></div>
     <div class="kpi"><div class="kpi-label">Ø Containment Rate</div><div class="kpi-value ${crClass}">${totals.cr.toFixed(1)} %</div></div>
     <div class="kpi"><div class="kpi-label">Nicht-Contained</div><div class="kpi-value">${fmtK(totals.inv - totals.con)}</div></div>
   `;
-
   document.getElementById('detailChartTitle').textContent = intent.replace(/_/g,' ') + ' – CR-Verlauf';
 
-  // Get weekly data: from WEEKLY_RAW or intent_weekly_cr
-  let wLabels, wCR, wInv, wCon;
-  if (DATA.intent_weekly_cr[intent]) {
-    wLabels = WEEKS_SHORT;
-    wCR = DATA.intent_weekly_cr[intent];
-    // approximate inv/con from totals
-    wInv = wCR.map(cr => null);
-    wCon = wCR.map(cr => null);
-  } else if (WEEKLY_RAW[intent]) {
+  // Build weekly series — prefer WEEKLY_RAW, then intent_weekly_cr (top10), else empty
+  let wLabels = [], wCR = [], wInv = [], wCon = [];
+
+  if (WEEKLY_RAW[intent]) {
     const raw = WEEKLY_RAW[intent];
-    wLabels = DATA.weeks.filter(w => raw[w]).map(w => 'KW' + w.split('-')[1]);
-    wCR  = DATA.weeks.filter(w => raw[w]).map(w => raw[w][2]);
-    wInv = DATA.weeks.filter(w => raw[w]).map(w => raw[w][0]);
-    wCon = DATA.weeks.filter(w => raw[w]).map(w => raw[w][1]);
+    const weeks = DATA.weeks.filter(w => raw[w]);
+    wLabels = weeks.map(w => 'KW' + w.split('-')[1]);
+    wCR  = weeks.map(w => raw[w][2]);
+    wInv = weeks.map(w => raw[w][0]);
+    wCon = weeks.map(w => raw[w][1]);
+  } else if (DATA.intent_weekly_cr[intent]) {
+    const crSeries = DATA.intent_weekly_cr[intent];
+    wLabels = DATA.weeks.map(w => 'KW' + w.split('-')[1]);
+    wCR  = crSeries;
+    // Approximate inv/con: distribute totals proportionally to weekly volume share from weekly_totals
+    const totalVol = DATA.weekly_totals.reduce((s,d) => s+d.inv, 0);
+    wInv = DATA.weekly_totals.map(d => totalVol > 0 ? Math.round(totals.inv * d.inv / totalVol) : null);
+    wCon = wInv.map((inv, i) => inv !== null ? Math.round(inv * wCR[i] / 100) : null);
   } else {
-    wLabels = WEEKS_SHORT;
-    wCR  = DATA.weeks.map(() => null);
-    wInv = DATA.weeks.map(() => null);
-    wCon = DATA.weeks.map(() => null);
+    // No weekly breakdown available — show total as single bar
+    wLabels = ['Gesamt'];
+    wCR     = [totals.cr];
+    wInv    = [totals.inv];
+    wCon    = [totals.con];
   }
 
   const color = totals.cr >= 70 ? GREEN : totals.cr >= 40 ? AMBER : RED;
+
+  // Dynamic Y-axis min/max for CR chart
+  const validCR = wCR.filter(v => v !== null && !isNaN(v));
+  const crMin = Math.max(0,  Math.floor(Math.min(...validCR) / 10) * 10 - 10);
+  const crMax = Math.min(100, Math.ceil(Math.max(...validCR) / 10) * 10 + 10);
 
   destroy('detailCrLine');
   charts.detailCrLine = new Chart(document.getElementById('detailCrLine'), {
@@ -1093,7 +1115,7 @@ function renderDetail() {
       plugins: { ...baseOpts().plugins, legend: { display: false } },
       scales: {
         x: baseOpts().scales.x,
-        y: { ...baseOpts().scales.y, min: 0, max: 100,
+        y: { ...baseOpts().scales.y, min: crMin, max: crMax,
           ticks: { ...baseOpts().scales.y.ticks, callback: v => v + ' %' } }
       }
     })
@@ -1108,7 +1130,9 @@ function renderDetail() {
     }]},
     options: baseOpts({
       plugins: { ...baseOpts().plugins, legend: { display: false } },
-      scales: { x: baseOpts().scales.x, y: { ...baseOpts().scales.y, ticks: { ...baseOpts().scales.y.ticks, callback: v => v ? (v/1000).toFixed(1)+'K' : '' } } }
+      scales: { x: baseOpts().scales.x,
+        y: { ...baseOpts().scales.y, ticks: { ...baseOpts().scales.y.ticks, callback: v => v ? (v/1000).toFixed(1)+'K' : '' } }
+      }
     })
   });
 
@@ -1116,13 +1140,15 @@ function renderDetail() {
   charts.detailStack = new Chart(document.getElementById('detailStack'), {
     type: 'bar',
     data: { labels: wLabels, datasets: [
-      { label: 'Contained', data: wCon, backgroundColor: GREEN + '88', borderColor: GREEN, borderWidth: 1, borderRadius: 2 },
-      { label: 'Nicht-Contained', data: wInv && wCon ? wInv.map((v,i) => v !== null ? v - wCon[i] : null) : [], backgroundColor: RED + '66', borderColor: RED, borderWidth: 1, borderRadius: 2 }
+      { label: 'Contained',      data: wCon, backgroundColor: GREEN + '88', borderColor: GREEN, borderWidth: 1, borderRadius: 2 },
+      { label: 'Nicht-Contained',data: wInv.map((v,i) => v !== null && wCon[i] !== null ? v - wCon[i] : null),
+        backgroundColor: RED + '66', borderColor: RED, borderWidth: 1, borderRadius: 2 }
     ]},
     options: baseOpts({
       scales: {
         x: { ...baseOpts().scales.x, stacked: true },
-        y: { ...baseOpts().scales.y, stacked: true, ticks: { ...baseOpts().scales.y.ticks, callback: v => v ? (v/1000).toFixed(1)+'K' : '' } }
+        y: { ...baseOpts().scales.y, stacked: true,
+          ticks: { ...baseOpts().scales.y.ticks, callback: v => v ? (v/1000).toFixed(1)+'K' : '' } }
       }
     })
   });
