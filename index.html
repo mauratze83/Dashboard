@@ -648,9 +648,6 @@ body.light .theme-toggle::after { transform: translateX(14px); background: var(-
   </div>
 
   <!-- Highlights -->
-  <div class="sec-label">Highlights & Anomalien</div>
-  <div id="ovHighlights" class="anomaly-list"></div>
-
   <div class="grid2">
     <div class="card">
       <div class="card-head">
@@ -682,6 +679,9 @@ body.light .theme-toggle::after { transform: translateX(14px); background: var(-
       <div class="chart-wrap h280"><canvas id="ovCrDist"></canvas></div>
     </div>
   </div>
+
+  <div class="sec-label">Highlights & Anomalien</div>
+  <div id="ovHighlights" class="anomaly-list"></div>
 </div>
 
 <!-- ═══════ WOCHENTREND ═══════ -->
@@ -1166,7 +1166,7 @@ function renderOverview() {
       plugins: Object.assign({}, baseOpts().plugins, {legend: { display: false }}),
       scales: {
         x: Object.assign({}, baseOpts().scales.x, {ticks: Object.assign({}, baseOpts().scales.x.ticks, {callback: v => (v/1000).toFixed(0)+'K'})}),
-        y: Object.assign({}, baseOpts().scales.y, { ticks: { color: '#7a84a0', font: { family: 'Inter', size: 10 } } }}
+        y: Object.assign({}, baseOpts().scales.y, { ticks: { color: '#7a84a0', font: { family: 'Inter', size: 10 } } })
       }
     })
   });
@@ -1575,7 +1575,7 @@ function renderWow() {
       }),
       scales: {
         x: Object.assign({}, baseOpts().scales.x, {ticks: Object.assign({}, baseOpts().scales.x.ticks, {callback: v => (v >= 0 ? '+' : '') + (v/1000).toFixed(1)+'K'})}),
-        y: Object.assign({}, baseOpts().scales.y, { ticks: { color: '#7a84a0', font: { family: 'Inter', size: 9 } } }}
+        y: Object.assign({}, baseOpts().scales.y, { ticks: { color: '#7a84a0', font: { family: 'Inter', size: 9 } } })
       }
     })
   });
@@ -1602,7 +1602,7 @@ function renderWow() {
       }),
       scales: {
         x: Object.assign({}, baseOpts().scales.x, {ticks: Object.assign({}, baseOpts().scales.x.ticks, {callback: v => (v >= 0 ? '+' : '') + v.toFixed(1)+' PP'})}),
-        y: Object.assign({}, baseOpts().scales.y, { ticks: { color: '#7a84a0', font: { family: 'Inter', size: 9 } } }}
+        y: Object.assign({}, baseOpts().scales.y, { ticks: { color: '#7a84a0', font: { family: 'Inter', size: 9 } } })
       }
     })
   });
@@ -1899,7 +1899,7 @@ function renderCluster() {
     options: baseOpts({
       plugins: Object.assign({}, baseOpts().plugins, {legend: { display: false }}),
       scales: { x: baseOpts().scales.x,
-        y: Object.assign({}, baseOpts().scales.y, { min: 0, max: 100, ticks: Object.assign({}, baseOpts().scales.y.ticks, {callback: function(v) { return v + ' %'; }}) }}
+        y: Object.assign({}, baseOpts().scales.y, { min: 0, max: 100, ticks: Object.assign({}, baseOpts().scales.y.ticks, {callback: function(v) { return v + ' %'; }}) })
       }
     })
   });
@@ -1917,7 +1917,7 @@ function renderCluster() {
     options: baseOpts({
       plugins: Object.assign({}, baseOpts().plugins, {legend: { display: false }}),
       scales: { x: baseOpts().scales.x,
-        y: Object.assign({}, baseOpts().scales.y, { ticks: Object.assign({}, baseOpts().scales.y.ticks, {callback: function(v) { return (v/1000).toFixed(0) + 'K'; }}) }}
+        y: Object.assign({}, baseOpts().scales.y, { ticks: Object.assign({}, baseOpts().scales.y.ticks, {callback: function(v) { return (v/1000).toFixed(0) + 'K'; }}) })
       }
     })
   });
