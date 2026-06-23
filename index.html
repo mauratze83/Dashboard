@@ -262,6 +262,32 @@ body.drag-active::after {
 .toast-bar.show { transform: translateX(-50%) translateY(0); opacity: 1; }
 .toast-bar.success { border-color: var(--green); color: var(--green); }
 .toast-bar.error   { border-color: var(--red);   color: var(--red); }
+/* TIME FILTER BAR */
+#timeFilterBar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 8px 24px;
+  background: var(--panel); border-bottom: 1px solid var(--border);
+  position: sticky; top: 52px; z-index: 150;
+}
+.tf-label { font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--tlo); }
+.tf-presets { display: flex; gap: 4px; }
+.tf-btn {
+  padding: 4px 10px; border-radius: 5px; border: 1px solid var(--border);
+  background: transparent; color: var(--tmid); font-size: 11px; font-weight: 600;
+  cursor: pointer; transition: all .15s; font-family: var(--mono);
+}
+.tf-btn:hover { border-color: var(--accent); color: var(--accent); }
+.tf-btn.active { background: rgba(91,141,238,.15); border-color: var(--accent); color: var(--accent); }
+.tf-sep { width: 1px; height: 18px; background: var(--border); }
+#timeFilterBar select {
+  background: var(--card); border: 1px solid var(--border); color: var(--thi);
+  border-radius: 6px; font-family: var(--mono); font-size: 11px; padding: 4px 8px;
+  cursor: pointer; outline: none;
+}
+#timeFilterBar select:focus { border-color: var(--accent); }
+.tf-range-info {
+  font-size: 10px; color: var(--tlo); font-family: var(--mono); margin-left: 4px;
+}
 </style>
 </head>
 <body>
@@ -298,6 +324,22 @@ body.drag-active::after {
   <div class="nav-tab" onclick="showPage('wow', this)">WoW</div>
 </nav>
 
+<div id="timeFilterBar">
+  <span class="tf-label">Zeitraum</span>
+  <div class="tf-presets" id="tfPresets">
+    <button class="tf-btn" onclick="applyPreset(4,  this)">4W</button>
+    <button class="tf-btn" onclick="applyPreset(8,  this)">8W</button>
+    <button class="tf-btn" onclick="applyPreset(13, this)">13W</button>
+    <button class="tf-btn active" onclick="applyPreset(0, this)">Alle</button>
+  </div>
+  <span class="tf-sep"></span>
+  <span class="tf-label">Von</span>
+  <select id="tfFrom" onchange="applyCustomRange()"></select>
+  <span class="tf-label">Bis</span>
+  <select id="tfTo"   onchange="applyCustomRange()"></select>
+  <span class="tf-range-info" id="tfRangeInfo"></span>
+</div>
+
 <main>
 
 <!-- ═══════ ÜBERSICHT ═══════ -->
@@ -306,22 +348,22 @@ body.drag-active::after {
   <div class="kpi-row">
     <div class="kpi">
       <div class="kpi-label">Gesamt Anfragen</div>
-      <div class="kpi-value">2,93M</div>
-      <div class="kpi-sub">2026-01 bis 2026-25</div>
+      <div class="kpi-value" id="ovKpiInv">2,93M</div>
+      <div class="kpi-sub" id="ovKpiWeeks">25 Wochen</div>
     </div>
     <div class="kpi">
       <div class="kpi-label">Contained</div>
-      <div class="kpi-value green">1,71M</div>
+      <div class="kpi-value green" id="ovKpiCon">1,71M</div>
       <div class="kpi-sub">Durch Bot gelöst</div>
     </div>
     <div class="kpi">
       <div class="kpi-label">Ø Containment Rate</div>
-      <div class="kpi-value green">58,4 %</div>
-      <div class="kpi-delta up">▲ +5,0 PP seit KW 01</div>
+      <div class="kpi-value green" id="ovKpiCR">58,4 %</div>
+      <div class="kpi-delta up" id="ovKpiDelta">▲ +5,0 PP im Zeitraum</div>
     </div>
     <div class="kpi">
       <div class="kpi-label">Aktive Intents</div>
-      <div class="kpi-value">69</div>
+      <div class="kpi-value" id="ovKpiIntents">69</div>
       <div class="kpi-sub">Kategorien insgesamt</div>
     </div>
   </div>
@@ -544,8 +586,132 @@ const DATA = {"weeks": ["2026-01", "2026-02", "2026-03", "2026-04", "2026-05", "
 const charts = {};
 function destroy(key) { if (charts[key]) { charts[key].destroy(); delete charts[key]; } }
 
+/* ═══════════════════ TIME FILTER ═══════════════════ */
+let filterFrom = null;
+let filterTo   = null;
+
+function getFilteredWeeks() {
+  const weeks = DATA.weeks;
+  const from = filterFrom || weeks[0];
+  const to   = filterTo   || weeks[weeks.length - 1];
+  return weeks.filter(w => w >= from && w <= to);
+}
+
+// Returns filtered slices of DATA for all render functions to use
+function getFD() {
+  const weeks = getFilteredWeeks();
+  const wSet  = new Set(weeks);
+  const wt    = DATA.weekly_totals.filter(d => wSet.has(d.w));
+
+  // Re-aggregate intent totals over filtered weeks only
+  const intentMap = {};
+  // We reconstruct from top10 weekly CR data + overall totals scaled
+  // For intent_totals: use original but note we can only filter top10 weekly.
+  // For simplicity, scale intent_totals by week fraction for non-top10,
+  // and use exact weekly data for top10.
+  DATA.intent_totals.forEach(it => {
+    const name = it.i;
+    if (DATA.intent_weekly_cr[name]) {
+      // We have weekly CR — reconstruct inv/con from weekly_totals ratio (approximation)
+      // Actually just use the full period totals scaled by week count ratio for non-aggregatable intents
+    }
+    intentMap[name] = { inv: 0, con: 0 };
+  });
+
+  // Best approach: scale all intent totals by the ratio of filtered inv / total inv
+  const totalInvAll  = DATA.weekly_totals.reduce((s, d) => s + d.inv, 0);
+  const totalInvFilt = wt.reduce((s, d) => s + d.inv, 0);
+  const ratio = totalInvAll > 0 ? totalInvFilt / totalInvAll : 1;
+
+  // For top10 we can compute exact CR per week; for others scale proportionally
+  const intent_totals = DATA.intent_totals.map(it => {
+    const scaledInv = Math.round(it.inv * ratio);
+    const scaledCon = Math.round(it.con * ratio);
+    return {
+      i: it.i,
+      inv: scaledInv,
+      con: scaledCon,
+      cr: scaledInv > 0 ? Math.round(scaledCon / scaledInv * 1000) / 10 : 0
+    };
+  }).filter(d => d.inv > 0);
+
+  // Weekly CR for top10 — slice to filtered weeks
+  const weekIdxFrom = DATA.weeks.indexOf(weeks[0]);
+  const weekIdxTo   = DATA.weeks.indexOf(weeks[weeks.length - 1]);
+  const intent_weekly_cr = {};
+  DATA.top10_names.forEach(name => {
+    if (DATA.intent_weekly_cr[name]) {
+      intent_weekly_cr[name] = DATA.intent_weekly_cr[name].slice(weekIdxFrom, weekIdxTo + 1);
+    }
+  });
+
+  const top10_names = [...intent_totals].sort((a,b) => b.inv - a.inv).slice(0,10).map(d => d.i);
+
+  return { weeks, weekly_totals: wt, intent_totals, top10_names, intent_weekly_cr };
+}
+
+function populateTimeFilter() {
+  const weeks = DATA.weeks;
+  const selFrom = document.getElementById('tfFrom');
+  const selTo   = document.getElementById('tfTo');
+  selFrom.innerHTML = weeks.map(w => `<option value="${w}">KW ${w.split('-')[1]}</option>`).join('');
+  selTo.innerHTML   = weeks.map(w => `<option value="${w}">KW ${w.split('-')[1]}</option>`).join('');
+  selFrom.value = weeks[0];
+  selTo.value   = weeks[weeks.length - 1];
+  filterFrom = weeks[0];
+  filterTo   = weeks[weeks.length - 1];
+  updateRangeInfo();
+}
+
+function updateRangeInfo() {
+  const fw = getFilteredWeeks();
+  document.getElementById('tfRangeInfo').textContent = `${fw.length} Wochen`;
+}
+
+function applyPreset(n, el) {
+  document.querySelectorAll('.tf-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  const weeks = DATA.weeks;
+  if (n === 0) {
+    filterFrom = weeks[0];
+    filterTo   = weeks[weeks.length - 1];
+  } else {
+    filterTo   = weeks[weeks.length - 1];
+    filterFrom = weeks[Math.max(0, weeks.length - n)];
+  }
+  document.getElementById('tfFrom').value = filterFrom;
+  document.getElementById('tfTo').value   = filterTo;
+  updateRangeInfo();
+  refreshAllCharts();
+}
+
+function applyCustomRange() {
+  document.querySelectorAll('.tf-btn').forEach(b => b.classList.remove('active'));
+  filterFrom = document.getElementById('tfFrom').value;
+  filterTo   = document.getElementById('tfTo').value;
+  // Ensure from <= to
+  if (filterFrom > filterTo) {
+    filterTo = filterFrom;
+    document.getElementById('tfTo').value = filterTo;
+  }
+  updateRangeInfo();
+  refreshAllCharts();
+}
+
+function refreshAllCharts() {
+  Object.keys(charts).forEach(k => { if (charts[k]) { charts[k].destroy(); delete charts[k]; } });
+  renderOverview();
+  renderIntentTable();
+  const activePage = document.querySelector('.page.active');
+  if (activePage) {
+    const id = activePage.id.replace('page-', '');
+    if (id === 'trend') renderTrend();
+    if (id === 'detail') renderDetail();
+    // WoW intentionally not re-filtered (always last 2 weeks)
+  }
+}
+
 /* ═══════════════════ SHARED CHART OPTIONS ═══════════════════ */
-const WEEKS_SHORT = DATA.weeks.map(w => 'KW' + w.split('-')[1]);
 const ACCENT = '#5b8dee', GREEN = '#30d896', AMBER = '#f5a623', RED = '#f06060';
 const PALETTE10 = ['#5b8dee','#30d896','#f5a623','#8b6cf7','#f06060','#38c4d4','#e87d3e','#a8d672','#d46eb3','#7aadee'];
 
@@ -578,8 +744,24 @@ function lineDs(label, data, color, fill=false) {
 
 /* ═══════════════════ OVERVIEW ═══════════════════ */
 function renderOverview() {
-  const wt = DATA.weekly_totals;
-  const labels = WEEKS_SHORT;
+  const fd = getFD();
+  const wt = fd.weekly_totals;
+  const labels = fd.weeks.map(w => 'KW' + w.split('-')[1]);
+
+  // Update KPI cards dynamically
+  const totalInv = wt.reduce((s,d) => s+d.inv, 0);
+  const totalCon = wt.reduce((s,d) => s+d.con, 0);
+  const avgCR    = totalInv > 0 ? (totalCon/totalInv*100).toFixed(1) : '—';
+  const crFirst  = wt[0]?.cr || 0;
+  const crLast   = wt[wt.length-1]?.cr || 0;
+  const crDelta  = (crLast - crFirst).toFixed(1);
+  document.getElementById('ovKpiInv').textContent  = fmtK(totalInv);
+  document.getElementById('ovKpiCon').textContent  = fmtK(totalCon);
+  document.getElementById('ovKpiCR').textContent   = avgCR + ' %';
+  document.getElementById('ovKpiDelta').innerHTML  = `${crDelta >= 0 ? '▲' : '▼'} ${crDelta >= 0 ? '+':''}${crDelta} PP im Zeitraum`;
+  document.getElementById('ovKpiDelta').className  = 'kpi-delta ' + (crDelta >= 0 ? 'up' : 'down');
+  document.getElementById('ovKpiIntents').textContent = fd.intent_totals.length;
+  document.getElementById('ovKpiWeeks').textContent   = fd.weeks.length + ' Wochen';
 
   destroy('ovCrLine');
   charts.ovCrLine = new Chart(document.getElementById('ovCrLine'), {
@@ -612,7 +794,7 @@ function renderOverview() {
     }})
   });
 
-  const top10 = [...DATA.intent_totals].sort((a,b) => b.inv - a.inv).slice(0,10);
+  const top10 = [...fd.intent_totals].sort((a,b) => b.inv - a.inv).slice(0,10);
   destroy('ovTop10Bar');
   charts.ovTop10Bar = new Chart(document.getElementById('ovTop10Bar'), {
     type: 'bar',
@@ -636,8 +818,8 @@ function renderOverview() {
   });
 
   // CR distribution buckets
-  const buckets = [0,0,0,0,0]; // <20, 20-40, 40-60, 60-80, >=80
-  DATA.intent_totals.filter(d => d.inv > 0).forEach(d => {
+  const buckets = [0,0,0,0,0];
+  fd.intent_totals.filter(d => d.inv > 0).forEach(d => {
     if (d.cr < 20) buckets[0]++;
     else if (d.cr < 40) buckets[1]++;
     else if (d.cr < 60) buckets[2]++;
@@ -660,8 +842,9 @@ function renderOverview() {
 
 /* ═══════════════════ TREND ═══════════════════ */
 function renderTrend() {
-  const wt = DATA.weekly_totals;
-  const labels = WEEKS_SHORT;
+  const fd = getFD();
+  const wt = fd.weekly_totals;
+  const labels = fd.weeks.map(w => 'KW' + w.split('-')[1]);
 
   destroy('trendCR');
   charts.trendCR = new Chart(document.getElementById('trendCR'), {
@@ -708,9 +891,9 @@ function renderTrend() {
     type: 'line',
     data: {
       labels,
-      datasets: DATA.top10_names.map((name, i) => ({
+      datasets: fd.top10_names.map((name, i) => ({
         label: name.replace(/_/g,' '),
-        data: DATA.intent_weekly_cr[name],
+        data: fd.intent_weekly_cr[name] || DATA.intent_weekly_cr[name],
         borderColor: PALETTE10[i], backgroundColor: 'transparent',
         pointRadius: 2, pointHoverRadius: 4, borderWidth: 1.5, tension: 0.3
       }))
@@ -757,10 +940,11 @@ function crBarColor(cr) {
 }
 
 function renderIntentTable() {
+  const fd = getFD();
   const cat = document.getElementById('catFilter').value;
   const sortBy = document.getElementById('sortCol').value;
 
-  let rows = DATA.intent_totals.filter(d => d.inv > 0);
+  let rows = fd.intent_totals.filter(d => d.inv > 0);
 
   if (cat) rows = rows.filter(d => d.i.startsWith(cat));
   if (crFilter === 'high') rows = rows.filter(d => d.cr >= 70);
@@ -1293,6 +1477,11 @@ function buildAndRefresh(rows, fileName) {
   Object.assign(DATA, newData);
   Object.assign(WOW_DATA, wowData);
 
+  // Reset time filter to full range on new upload
+  filterFrom = weekSet[0];
+  filterTo   = weekSet[weekSet.length - 1];
+  populateTimeFilter();
+
   // Rebuild deduped WoW list
   wowSeen.clear();
   wowDeduped.length = 0;
@@ -1341,6 +1530,7 @@ function buildAndRefresh(rows, fileName) {
 }
 
 /* ═══════════════════ INIT ═══════════════════ */
+populateTimeFilter();
 renderOverview();
 renderIntentTable();
 </script>
