@@ -288,6 +288,17 @@ body.drag-active::after {
 .tf-range-info {
   font-size: 10px; color: var(--tlo); font-family: var(--mono); margin-left: 4px;
 }
+.btn.primary {
+  background: rgba(91,141,238,.15); border-color: var(--accent);
+  color: var(--accent); font-weight: 600;
+}
+.btn.primary:hover { background: var(--accent); color: #fff; }
+.btn.primary:disabled { opacity: .45; pointer-events: none; }
+
+/* Summary text formatting */
+#wowSummaryText strong { color: var(--thi); font-weight: 600; }
+#wowSummaryText .pos { color: var(--green); font-weight: 600; }
+#wowSummaryText .neg { color: var(--red); font-weight: 600; }
 </style>
 </head>
 <body>
@@ -513,6 +524,30 @@ body.drag-active::after {
 </div>
 <!-- ═══════ WoW ═══════ -->
 <div class="page" id="page-wow">
+
+  <!-- MGMT SUMMARY -->
+  <div class="card" id="wowSummaryCard" style="margin-bottom:16px; position:relative;">
+    <div class="card-head">
+      <div>
+        <div class="card-title">Management Summary</div>
+        <div class="card-sub" id="wowSummaryMeta">KI-generierte Analyse des Wochenvergleichs</div>
+      </div>
+      <button class="btn primary" id="wowSummaryBtn" onclick="generateWowSummary()">✦ Analyse generieren</button>
+    </div>
+    <div id="wowSummaryContent" style="display:none">
+      <div id="wowSummaryText" style="
+        font-size: 13px; line-height: 1.75; color: var(--tmid);
+        border-top: 1px solid var(--border); padding-top: 16px; margin-top: 4px;
+        white-space: pre-wrap;
+      "></div>
+    </div>
+    <div id="wowSummaryLoading" style="display:none; padding: 20px 0; text-align:center;">
+      <div style="display:inline-flex; align-items:center; gap:10px; color:var(--tmid); font-size:13px;">
+        <span id="wowLoadingDots" style="font-size:18px; letter-spacing:3px;">···</span>
+        <span>Claude analysiert die WoW-Daten…</span>
+      </div>
+    </div>
+  </div>
 
   <div class="wow-summary" id="wowKpis"></div>
 
@@ -1262,6 +1297,145 @@ function renderWow() {
       <td><span class="pill ${sig.cls}">${sig.icon} ${sig.label}</span></td>
     </tr>`;
   }).join('');
+}
+
+/* ═══════════════════ WoW MGMT SUMMARY (Claude API) ═══════════════════ */
+let summaryAbort = null;
+
+async function generateWowSummary() {
+  const btn = document.getElementById('wowSummaryBtn');
+  btn.disabled = true;
+  btn.textContent = '✦ Wird generiert…';
+
+  document.getElementById('wowSummaryContent').style.display = 'none';
+  document.getElementById('wowSummaryLoading').style.display = 'block';
+  document.getElementById('wowSummaryText').innerHTML = '';
+
+  // Animate loading dots
+  const dots = ['·  ','·· ','···','·· ','·  '];
+  let di = 0;
+  const dotTimer = setInterval(() => {
+    document.getElementById('wowLoadingDots').textContent = dots[di++ % dots.length];
+  }, 300);
+
+  // Build compact data payload for Claude
+  const prevKW = WOW_DATA.prev;
+  const lastKW = WOW_DATA.last;
+
+  // Total CR shift
+  const totalInvCur  = wowDeduped.reduce((s,r) => s + r.inv_cur, 0);
+  const totalInvPrev = wowDeduped.reduce((s,r) => s + r.inv_prev, 0);
+  const totalConCur  = wowDeduped.reduce((s,r) => s + r.con_cur, 0);
+  const totalConPrev = wowDeduped.reduce((s,r) => s + r.con_prev, 0);
+  const crCur  = totalInvCur  ? (totalConCur  / totalInvCur  * 100).toFixed(1) : 0;
+  const crPrev = totalInvPrev ? (totalConPrev / totalInvPrev * 100).toFixed(1) : 0;
+  const crDelta = (crCur - crPrev).toFixed(1);
+  const volDelta = totalInvCur - totalInvPrev;
+  const volDeltaPct = totalInvPrev ? ((volDelta / totalInvPrev) * 100).toFixed(1) : 0;
+
+  // Top movers
+  const byVolAbs  = [...wowDeduped].filter(r => r.inv_prev > 0).sort((a,b) => Math.abs(b.inv_delta) - Math.abs(a.inv_delta)).slice(0,8);
+  const byCRShift = [...wowDeduped].filter(r => r.inv_cur >= 50).sort((a,b) => Math.abs(b.cr_delta) - Math.abs(a.cr_delta)).slice(0,8);
+  const critical  = wowDeduped.filter(r => r.cr_cur < 30 && r.inv_cur > 100).sort((a,b) => a.cr_cur - b.cr_cur).slice(0,5);
+
+  const prompt = `Du bist Analyst für einen Kundendienst-Chatbot eines Telekommunikationsunternehmens.
+Schreibe eine präzise Management Summary (deutsch) für den Wochenvergleich ${prevKW} → ${lastKW}.
+
+GESAMTENTWICKLUNG:
+- Gesamtvolumen: ${(totalInvPrev/1000).toFixed(1)}K → ${(totalInvCur/1000).toFixed(1)}K (${volDelta >= 0 ? '+':''}${(volDelta/1000).toFixed(1)}K, ${volDeltaPct >= 0 ? '+':''}${volDeltaPct}%)
+- Gesamt-Containment Rate: ${crPrev}% → ${crCur}% (${crDelta >= 0 ? '+':''}${crDelta} PP)
+
+TOP VOLUMEN-VERÄNDERUNGEN (Intents mit größten absoluten Shifts):
+${byVolAbs.map(r => `- ${r.i}: ${(r.inv_prev/1000).toFixed(1)}K → ${(r.inv_cur/1000).toFixed(1)}K (${r.inv_delta >= 0 ? '+':''}${(r.inv_delta/1000).toFixed(1)}K, ${r.inv_delta_pct >= 0 ? '+':''}${r.inv_delta_pct}%)`).join('\n')}
+
+TOP CR-VERÄNDERUNGEN (Intents mit stärksten CR-Shifts, min. 50 Anfragen):
+${byCRShift.map(r => `- ${r.i}: CR ${r.cr_prev}% → ${r.cr_cur}% (${r.cr_delta >= 0 ? '+':''}${r.cr_delta} PP), Volumen: ${(r.inv_cur/1000).toFixed(1)}K`).join('\n')}
+
+KRITISCHE INTENTS (CR < 30%, > 100 Anfragen):
+${critical.length > 0 ? critical.map(r => `- ${r.i}: CR ${r.cr_cur}% (${r.cr_delta >= 0 ? '+':''}${r.cr_delta} PP WoW), ${(r.inv_cur/1000).toFixed(1)}K Anfragen`).join('\n') : '- Keine'}
+
+Schreibe die Summary in folgendem Format:
+1. Kurzer Gesamtbefund (2-3 Sätze, Kernaussage zum Vergleich)
+2. ✅ Positive Entwicklungen (2-4 Punkte, konkret mit Zahlen)
+3. ⚠️ Handlungsbedarf (2-4 Punkte, konkret mit Zahlen)
+4. Empfehlung (1-2 Sätze, was sollte das Team priorisieren)
+
+Sei präzise, nutze konkrete Zahlen aus den Daten. Keine allgemeinen Floskeln. Max. 350 Wörter.`;
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1000,
+        stream: true,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    clearInterval(dotTimer);
+    document.getElementById('wowSummaryLoading').style.display = 'none';
+    document.getElementById('wowSummaryContent').style.display = 'block';
+
+    const textEl = document.getElementById('wowSummaryText');
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let fullText = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const json = line.slice(6).trim();
+        if (json === '[DONE]') break;
+        try {
+          const evt = JSON.parse(json);
+          if (evt.type === 'content_block_delta' && evt.delta?.text) {
+            fullText += evt.delta.text;
+            textEl.innerHTML = formatSummary(fullText);
+          }
+        } catch {}
+      }
+    }
+
+    // Final render
+    textEl.innerHTML = formatSummary(fullText);
+    document.getElementById('wowSummaryMeta').textContent =
+      `KI-generierte Analyse · ${prevKW} → ${lastKW} · ${new Date().toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'})} Uhr`;
+
+  } catch (err) {
+    clearInterval(dotTimer);
+    document.getElementById('wowSummaryLoading').style.display = 'none';
+    document.getElementById('wowSummaryContent').style.display = 'block';
+    document.getElementById('wowSummaryText').innerHTML =
+      `<span style="color:var(--red)">Fehler beim Generieren: ${err.message}</span>`;
+  }
+
+  btn.disabled = false;
+  btn.textContent = '↺ Neu generieren';
+}
+
+function formatSummary(text) {
+  return text
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    // Bold markdown
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    // Section headers with emoji
+    .replace(/(✅[^\n]+)/g, '<span style="color:var(--green);font-weight:700;font-size:13px;">$1</span>')
+    .replace(/(⚠️[^\n]+)/g, '<span style="color:var(--amber);font-weight:700;font-size:13px;">$1</span>')
+    .replace(/(❌[^\n]+)/g, '<span style="color:var(--red);font-weight:700;font-size:13px;">$1</span>')
+    .replace(/(🎯[^\n]+|Empfehlung[^\n]*:?)/g, '<span style="color:var(--accent);font-weight:700;font-size:13px;">$1</span>')
+    // Positive numbers green, negative red
+    .replace(/(\+\d+[\d,.]*\s*(?:PP|%|K)?)/g, '<span style="color:var(--green);font-weight:600;">$1</span>')
+    .replace(/(−\d+[\d,.]*\s*(?:PP|%|K)?|-\d+[\d,.]*\s*(?:PP|%|K)?)/g, '<span style="color:var(--red);font-weight:600;">$1</span>')
+    // Newlines to breaks
+    .replace(/\n/g, '<br>');
 }
 
 /* ═══════════════════ NAV ═══════════════════ */
