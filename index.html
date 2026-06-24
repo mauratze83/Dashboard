@@ -619,6 +619,57 @@ body.light .theme-toggle::after { transform: translateX(14px); background: var(-
 
 /* WoW week picker */
 #wowWeekPicker { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+/* ── TOP MOVER WIDGET ── */
+.top-mover-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:20px; }
+.top-mover-card {
+  background:var(--card); border:1px solid var(--border); border-radius:8px;
+  padding:12px 14px; cursor:pointer; transition:border-color .15s;
+}
+.top-mover-card:hover { border-color:var(--accent); }
+.top-mover-card.pos { border-left:3px solid var(--green); }
+.top-mover-card.neg { border-left:3px solid var(--red); }
+.top-mover-label { font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--tlo);margin-bottom:5px; }
+.top-mover-name  { font-size:11px;font-weight:600;color:var(--thi);margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+.top-mover-vals  { display:flex;align-items:center;gap:8px; }
+.top-mover-cr    { font-family:var(--mono);font-size:13px;font-weight:500; }
+.top-mover-delta { font-family:var(--mono);font-size:11px; }
+
+/* ── TREND ARROW IN TABLE ── */
+.trend-arrow { display:inline-flex;align-items:center;gap:2px;font-size:10px;font-family:var(--mono);font-weight:600;padding:1px 5px;border-radius:3px;white-space:nowrap; }
+.trend-up   { color:var(--green);background:rgba(48,216,150,.1); }
+.trend-down { color:var(--red);  background:rgba(240,96,96,.1); }
+.trend-flat { color:var(--tlo);  background:rgba(255,255,255,.04); }
+
+/* ── HEATMAP ── */
+.heatmap-table { border-collapse:collapse; font-size:10px; min-width:max-content; }
+.heatmap-table th {
+  padding:4px 6px; text-align:center; font-weight:600; letter-spacing:.05em;
+  color:var(--tmid); font-family:var(--mono); font-size:9px; position:sticky; top:0;
+  background:var(--card); z-index:2;
+}
+.heatmap-table th.intent-col { text-align:left; min-width:160px; position:sticky; left:0; z-index:3; background:var(--card); }
+.heatmap-table td { padding:2px 3px; }
+.heatmap-table td.intent-name-cell {
+  font-size:10px; color:var(--thi); padding:4px 10px 4px 4px;
+  white-space:nowrap; position:sticky; left:0; background:var(--card); z-index:1;
+  cursor:pointer; font-weight:500;
+}
+.heatmap-table td.intent-name-cell:hover { color:var(--accent); }
+.hm-cell {
+  width:22px; height:22px; border-radius:2px; display:table-cell;
+  vertical-align:middle; text-align:center; font-family:var(--mono); font-size:8px;
+  cursor:default; transition:transform .1s; position:relative;
+}
+.hm-cell:hover { transform:scale(1.4); z-index:10; border-radius:3px; }
+.hm-empty { background:var(--border); color:var(--tlo); }
+
+@media (max-width:768px) {
+  .top-mover-grid { grid-template-columns:1fr 1fr; }
+  .hm-cell { width:16px; height:16px; font-size:7px; }
+}
+@media (max-width:480px) {
+  .top-mover-grid { grid-template-columns:1fr; }
+}
 </style>
 </head>
 <body>
@@ -653,6 +704,7 @@ body.light .theme-toggle::after { transform: translateX(14px); background: var(-
   <div class="nav-tab active" onclick="showPage('overview', this)">Übersicht</div>
   <div class="nav-tab" onclick="showPage('wow', this)">WoW</div>
   <div class="nav-tab" onclick="showPage('trend', this)">Wochentrend</div>
+  <div class="nav-tab" onclick="showPage('heatmap', this)">Heatmap</div>
   <div class="nav-tab" onclick="showPage('cluster', this)">Clustering</div>
   <div class="nav-tab" onclick="showPage('intents', this)">Intent-Analyse</div>
   <div class="nav-tab" onclick="showPage('detail', this)">Intent-Verlauf</div>
@@ -737,6 +789,9 @@ body.light .theme-toggle::after { transform: translateX(14px); background: var(-
 
   <div class="sec-label">Highlights & Anomalien</div>
   <div id="ovHighlights" class="anomaly-list"></div>
+
+  <div class="sec-label" style="margin-top:4px">Top Mover dieser Woche</div>
+  <div id="ovTopMover" class="top-mover-grid"></div>
 </div>
 
 <!-- ═══════ WOCHENTREND ═══════ -->
@@ -806,6 +861,7 @@ body.light .theme-toggle::after { transform: translateX(14px); background: var(-
           <th>Involved</th>
           <th>Contained</th>
           <th>Containment Rate</th>
+          <th>Trend 4W</th>
         </tr>
       </thead>
       <tbody id="intentTbody"></tbody>
@@ -838,6 +894,41 @@ body.light .theme-toggle::after { transform: translateX(14px); background: var(-
     </div>
   </div>
 </div>
+<!-- ═══════ HEATMAP ═══════ -->
+<div class="page" id="page-heatmap">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
+    <div>
+      <div style="font-size:18px;font-weight:700;color:var(--thi)">CR Heatmap</div>
+      <div style="font-size:12px;color:var(--tmid);margin-top:2px">Containment Rate je Intent und Woche — dunkler = niedriger CR</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <span class="filter-label">Sortieren:</span>
+      <select id="heatmapSort" onchange="renderHeatmap()">
+        <option value="volume">Nach Volumen</option>
+        <option value="cr">Nach CR</option>
+        <option value="name">Nach Name</option>
+        <option value="trend">Nach Trend</option>
+      </select>
+      <select id="heatmapLimit" onchange="renderHeatmap()">
+        <option value="20">Top 20</option>
+        <option value="35" selected>Top 35</option>
+        <option value="50">Top 50</option>
+        <option value="all">Alle</option>
+      </select>
+      <button class="export-btn" onclick="exportPageAsPng()">⬇ PNG</button>
+    </div>
+  </div>
+  <div class="card" style="padding:16px;overflow-x:auto;">
+    <div id="heatmapLegend" style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+      <span style="font-size:10px;color:var(--tlo)">CR niedrig</span>
+      <div id="heatmapGradient" style="width:120px;height:10px;border-radius:3px;"></div>
+      <span style="font-size:10px;color:var(--tlo)">CR hoch</span>
+      <span style="margin-left:12px;font-size:10px;color:var(--tlo)">— = keine Daten</span>
+    </div>
+    <div id="heatmapGrid" style="overflow-x:auto;"></div>
+  </div>
+</div>
+
 <!-- ═══════ CLUSTERING ═══════ -->
 <div class="page" id="page-cluster">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
@@ -1438,6 +1529,7 @@ function renderIntentTable() {
           <span class="cr-val ${crColor(d.cr)}">${d.cr.toFixed(1)} %</span>
         </div>
       </td>
+      <td>${trendArrow(d.i)}</td>
     </tr>`;
   }).join('');
   animateTable(document.getElementById('page-intents'));
@@ -1935,6 +2027,7 @@ function toggleTheme() {
   // Redraw charts so colors update
   refreshAllCharts();
   if (document.getElementById('page-cluster').classList.contains('active')) renderCluster();
+  if (document.getElementById('page-heatmap').classList.contains('active')) renderHeatmap();
 }
 (function() {
   try { if (sessionStorage.getItem('theme') === 'light') document.body.classList.add('light'); } catch(e) {}
@@ -2133,6 +2226,9 @@ function detectAnomalies() {
       '<span class="anomaly-val ' + (a.type === 'jump' ? 'cr-high' : 'cr-low') + '">' + a.val + '</span>' +
     '</div>';
   }).join('');
+
+  // Render Top Mover widget on same page
+  renderTopMover();
 }
 
 /* ═══════════════════ PNG EXPORT ═══════════════════ */
@@ -2377,6 +2473,186 @@ function typewriterReveal(el, html, charsPerFrame) {
   revealNextWord();
 }
 
+/* ═══════════════════ TREND ARROW ═══════════════════ */
+// Compute 4-week trend for an intent using weekly CR data
+function getTrend(intentName) {
+  var series = DATA.intent_weekly_cr[intentName];
+  if (!series || series.length < 5) return null;
+  // Compare last 4 weeks avg vs previous 4 weeks avg
+  var n = series.length;
+  var valid = function(v) { return v !== null && !isNaN(v); };
+  var last4 = series.slice(n - 4).filter(valid);
+  var prev4 = series.slice(Math.max(0, n - 8), n - 4).filter(valid);
+  if (last4.length < 2 || prev4.length < 2) return null;
+  var avgLast = last4.reduce(function(s,v){return s+v;},0) / last4.length;
+  var avgPrev = prev4.reduce(function(s,v){return s+v;},0) / prev4.length;
+  return Math.round((avgLast - avgPrev) * 10) / 10;
+}
+
+function trendArrow(intentName) {
+  var delta = getTrend(intentName);
+  if (delta === null) return '<span class="trend-arrow trend-flat">— </span>';
+  if (delta >  1.5)  return '<span class="trend-arrow trend-up">▲ +' + delta.toFixed(1) + '</span>';
+  if (delta < -1.5)  return '<span class="trend-arrow trend-down">▼ ' + delta.toFixed(1) + '</span>';
+  return '<span class="trend-arrow trend-flat">→ ' + (delta >= 0 ? '+':'') + delta.toFixed(1) + '</span>';
+}
+
+/* ═══════════════════ TOP MOVER WIDGET ═══════════════════ */
+function renderTopMover() {
+  var el = document.getElementById('ovTopMover');
+  if (!el) return;
+
+  // Use WoW deduped data if available
+  if (!wowDeduped || wowDeduped.length === 0) {
+    el.innerHTML = '<div style="color:var(--tlo);font-size:12px;padding:8px 0">Keine WoW-Daten verfügbar</div>';
+    return;
+  }
+
+  // Best CR gainers (min 100 inv)
+  var gainers = wowDeduped.slice()
+    .filter(function(r) { return r.inv_cur >= 100 && r.cr_delta > 0; })
+    .sort(function(a,b) { return b.cr_delta - a.cr_delta; })
+    .slice(0, 3);
+
+  // Worst CR drops
+  var losers = wowDeduped.slice()
+    .filter(function(r) { return r.inv_cur >= 100 && r.cr_delta < 0; })
+    .sort(function(a,b) { return a.cr_delta - b.cr_delta; })
+    .slice(0, 3);
+
+  // Biggest vol spike
+  var volSpike = wowDeduped.slice()
+    .filter(function(r) { return r.inv_delta_pct >= 10; })
+    .sort(function(a,b) { return b.inv_delta_pct - a.inv_delta_pct; })
+    .slice(0, 3);
+
+  function card(r, type) {
+    var isPos = type === 'gainer';
+    var isVol = type === 'vol';
+    var label = isPos ? '↗ CR Gewinner' : isVol ? '📈 Volumen-Spike' : '↘ CR Verlierer';
+    var delta = isVol
+      ? (r.inv_delta_pct > 0 ? '+' : '') + r.inv_delta_pct.toFixed(1) + ' %'
+      : (r.cr_delta > 0 ? '+' : '') + r.cr_delta.toFixed(1) + ' PP';
+    var crCls = r.cr_cur >= 70 ? 'cr-high' : r.cr_cur >= 40 ? 'cr-mid' : 'cr-low';
+    var cardCls = isPos ? 'pos' : isVol ? '' : 'neg';
+    var name = r.i.replace(/_/g, ' ');
+    return '<div class="top-mover-card ' + cardCls + '" onclick="openInDetail(\'' + r.i + '\')" title="Intent-Verlauf öffnen">' +
+      '<div class="top-mover-label">' + label + '</div>' +
+      '<div class="top-mover-name">' + name + '</div>' +
+      '<div class="top-mover-vals">' +
+        '<span class="top-mover-cr ' + crCls + '">' + r.cr_cur.toFixed(1) + ' %</span>' +
+        '<span class="top-mover-delta ' + (isPos ? 'delta-up' : isVol ? '' : 'delta-down') + '">' + delta + '</span>' +
+        '<span style="font-size:10px;color:var(--tlo);margin-left:auto">' + fmtK(r.inv_cur) + '</span>' +
+      '</div>' +
+    '</div>';
+  }
+
+  var html = '';
+  gainers.forEach(function(r) { html += card(r, 'gainer'); });
+  losers.forEach(function(r)  { html += card(r, 'loser'); });
+  volSpike.forEach(function(r){ html += card(r, 'vol'); });
+
+  el.innerHTML = html || '<div style="color:var(--tlo);font-size:12px;padding:8px 0">Nicht genug Daten für diese Woche</div>';
+  triggerAnims(el);
+}
+
+/* ═══════════════════ HEATMAP ═══════════════════ */
+function crToColor(cr, isDark) {
+  if (cr === null || isNaN(cr)) return isDark ? '#1c2035' : '#e8ecf5';
+  // Map 0-100 to color: red → amber → green
+  var r, g, b;
+  if (cr < 40) {
+    // red to amber: 0-40
+    var t = cr / 40;
+    r = 220; g = Math.round(64 + t * (166-64)); b = 64;
+  } else if (cr < 70) {
+    // amber to yellow-green: 40-70
+    var t = (cr - 40) / 30;
+    r = Math.round(220 - t * 100); g = Math.round(166 + t * 50); b = 64;
+  } else {
+    // yellow-green to green: 70-100
+    var t = (cr - 70) / 30;
+    r = Math.round(120 - t * 72); g = Math.round(216 + t * 20); b = Math.round(64 + t * 86);
+  }
+  return 'rgb(' + r + ',' + g + ',' + b + ')';
+}
+
+function renderHeatmap() {
+  var fd = getFD();
+  var isDark = !document.body.classList.contains('light');
+  var sortBy = document.getElementById('heatmapSort').value;
+  var limitVal = document.getElementById('heatmapLimit').value;
+
+  // Build per-intent weekly CR lookup
+  // For top10 use intent_weekly_cr, for others use WEEKLY_RAW
+  var weeks = fd.weeks;
+
+  // Sort intents
+  var intents = fd.intent_totals.slice();
+  if (sortBy === 'volume') intents.sort(function(a,b){return b.inv-a.inv;});
+  else if (sortBy === 'cr') intents.sort(function(a,b){return b.cr-a.cr;});
+  else if (sortBy === 'name') intents.sort(function(a,b){return a.i.localeCompare(b.i);});
+  else if (sortBy === 'trend') {
+    intents.sort(function(a,b){
+      var ta = getTrend(a.i) || 0;
+      var tb = getTrend(b.i) || 0;
+      return tb - ta;
+    });
+  }
+
+  var limit = limitVal === 'all' ? intents.length : parseInt(limitVal);
+  intents = intents.slice(0, limit);
+
+  // Week labels (show every 4th to avoid crowding)
+  var weekLabels = weeks.map(function(w, i) {
+    return (i % 4 === 0 || i === weeks.length - 1) ? 'KW' + w.split('-')[1] : '';
+  });
+
+  // Build table
+  var html = '<table class="heatmap-table"><thead><tr>';
+  html += '<th class="intent-col">Intent</th>';
+  weekLabels.forEach(function(lbl) {
+    html += '<th>' + lbl + '</th>';
+  });
+  html += '<th style="padding-left:8px">Trend</th>';
+  html += '</tr></thead><tbody>';
+
+  intents.forEach(function(d) {
+    html += '<tr>';
+    var shortName = d.i.replace(/_/g, ' ').replace(/^(\w+) /, '');
+    html += '<td class="intent-name-cell" onclick="openInDetail(\'' + d.i + '\')" title="' + d.i + '">' + shortName + '</td>';
+
+    weeks.forEach(function(w, wi) {
+      var cr = null;
+      if (DATA.intent_weekly_cr[d.i]) {
+        cr = DATA.intent_weekly_cr[d.i][wi];
+      } else if (WEEKLY_RAW[d.i] && WEEKLY_RAW[d.i][w]) {
+        cr = WEEKLY_RAW[d.i][w][2];
+      }
+      var bg = crToColor(cr, isDark);
+      var textColor = cr !== null ? (cr < 55 ? 'rgba(255,255,255,.8)' : 'rgba(0,0,0,.7)') : 'transparent';
+      var title = cr !== null ? d.i + '\n' + w + ': ' + cr.toFixed(1) + ' %' : d.i + '\n' + w + ': k.A.';
+      html += '<td class="hm-cell' + (cr === null ? ' hm-empty' : '') + '" style="background:' + bg + ';color:' + textColor + '" title="' + title + '">' +
+        (cr !== null ? Math.round(cr) : '—') + '</td>';
+    });
+
+    // Trend column
+    html += '<td style="padding-left:8px">' + trendArrow(d.i) + '</td>';
+    html += '</tr>';
+  });
+
+  html += '</tbody></table>';
+  document.getElementById('heatmapGrid').innerHTML = html;
+
+  // Gradient legend
+  var grad = document.getElementById('heatmapGradient');
+  if (grad) {
+    var stops = [];
+    for (var i = 0; i <= 10; i++) { stops.push(crToColor(i * 10, isDark)); }
+    grad.style.background = 'linear-gradient(to right,' + stops.join(',') + ')';
+  }
+}
+
 /* ═══════════════════ NAV ═══════════════════ */
 let activePage = 'overview';
 /* ═══════════════════ ANIMATION HELPERS ═══════════════════ */
@@ -2432,6 +2708,7 @@ function showPage(id, el) {
 
     // Render content first, then animate
     if (id === 'trend' && !charts.trendCR) renderTrend();
+    if (id === 'heatmap') renderHeatmap();
     if (id === 'cluster')  { renderCluster();  }
     if (id === 'intents')  { renderIntentTable(); animateTable(page); }
     if (id === 'detail')   { populateDetailSelect(); renderDetail(); }
@@ -2698,7 +2975,7 @@ function buildAndRefresh(rows, fileName) {
 /* ═══════════════════ SWIPE NAVIGATION (mobile) ═══════════════════ */
 (function() {
   var touchStartX = 0, touchStartY = 0;
-  var TAB_ORDER = ['overview','wow','trend','cluster','intents','detail'];
+  var TAB_ORDER = ['overview','wow','trend','heatmap','cluster','intents','detail'];
 
   document.addEventListener('touchstart', function(e) {
     touchStartX = e.changedTouches[0].screenX;
