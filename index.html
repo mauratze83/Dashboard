@@ -1669,8 +1669,8 @@ function renderWow() {
       ? `<span class="pill pill-down">▼ ${r.cr_delta.toFixed(1)} PP</span>`
       : `<span class="pill pill-flat">= ${r.cr_delta.toFixed(1)} PP</span>`;
     const crCls = v => v >= 70 ? 'cr-high' : v >= 40 ? 'cr-mid' : 'cr-low';
-    return `<tr>
-      <td class="intent-name">${tag(r)} ${r.i.split('_').slice(1).join(' ') || r.i}</td>
+    return `<tr style="cursor:pointer" onclick="openInDetail('${r.i}')" title="Intent-Verlauf öffnen →">
+      <td class="intent-name">${tag(r)} ${r.i.split('_').slice(1).join(' ') || r.i} <span style="float:right;color:var(--tlo);font-size:10px">→</span></td>
       <td>${fmtK(r.inv_prev)}</td>
       <td>${fmtK(r.inv_cur)}</td>
       <td>${volPill}</td>
