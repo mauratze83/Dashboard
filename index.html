@@ -585,6 +585,7 @@ body.light .theme-toggle::after { transform: translateX(14px); background: var(-
 /* ── CLUSTERING TAB ── */
 .cluster-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; margin-bottom: 20px; }
 .cluster-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
+.cluster-card.anim-in { animation: kpiIn .5s cubic-bezier(.34,1.4,.64,1) both; }
 .cluster-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .cluster-name { font-size: 12px; font-weight: 700; }
 .cluster-cr { font-family: var(--mono); font-size: 20px; font-weight: 500; }
@@ -1382,10 +1383,23 @@ function crBarColor(cr) {
 }
 
 /* navigate to detail tab for a specific intent */
+function animateTable(container) {
+  var wrap = (container || document).querySelector('.intent-table-wrap, .wow-table-wrap');
+  if (!wrap) return;
+  wrap.style.opacity = '0';
+  wrap.style.transform = 'translateY(10px)';
+  wrap.style.transition = 'none';
+  setTimeout(function() {
+    wrap.style.transition = 'opacity .4s ease, transform .4s ease';
+    wrap.style.opacity = '1';
+    wrap.style.transform = 'translateY(0)';
+  }, 40);
+}
+
 function openInDetail(intent) {
   populateDetailSelect(intent);
-  renderDetail();
-  const detailTab = Array.from(document.querySelectorAll('.nav-tab')).find(t => t.textContent.trim() === 'Intent-Verlauf');
+  var detailTab = Array.from(document.querySelectorAll('.nav-tab'))
+    .find(function(t) { return t.textContent.trim() === 'Intent-Verlauf'; });
   showPage('detail', detailTab);
 }
 
@@ -1426,6 +1440,7 @@ function renderIntentTable() {
       </td>
     </tr>`;
   }).join('');
+  animateTable(document.getElementById('page-intents'));
 }
 
 /* ═══════════════════ DETAIL ═══════════════════ */
@@ -1466,6 +1481,8 @@ function renderDetail() {
     <div class="kpi"><div class="kpi-label">Ø Containment Rate</div><div class="kpi-value ${crClass}">${totals.cr.toFixed(1)} %</div></div>
     <div class="kpi"><div class="kpi-label">Nicht-Contained</div><div class="kpi-value">${fmtK(totals.inv - totals.con)}</div></div>
   `;
+  // Animate the freshly injected KPI cards
+  triggerAnims(document.getElementById('page-detail'));
   document.getElementById('detailChartTitle').textContent = intent.replace(/_/g,' ') + ' – CR-Verlauf';
 
   // Build weekly series — prefer WEEKLY_RAW, then intent_weekly_cr (top10), else empty
@@ -1622,6 +1639,8 @@ function renderWow() {
       <div class="kpi-value ${crDelta >= 0 ? 'green' : 'amber'}">${crCur.toFixed(1)} %</div>
       <div class="kpi-delta ${crDelta >= 0 ? 'up' : 'down'}">${crDelta >= 0 ? '▲' : '▼'} ${crDelta >= 0 ? '+' : ''}${crDelta.toFixed(1)} PP WoW</div>
     </div>`;
+  // Animate the freshly injected WoW KPI cards
+  triggerAnims(document.getElementById('page-wow'));
 
   // Filter rows for view
   let rows = wowDeduped.slice();
@@ -1730,6 +1749,7 @@ function renderWow() {
       <td><span class="pill ${sig.cls}">${sig.icon} ${sig.label}</span></td>
     </tr>`;
   }).join('');
+  animateTable(document.getElementById('page-wow'));
 }
 
 /* ═══════════════════ API KEY (localStorage) ═══════════════════ */
@@ -2359,6 +2379,33 @@ function typewriterReveal(el, html, charsPerFrame) {
 
 /* ═══════════════════ NAV ═══════════════════ */
 let activePage = 'overview';
+/* ═══════════════════ ANIMATION HELPERS ═══════════════════ */
+function triggerAnims(container) {
+  if (!container) container = document.querySelector('.page.active');
+  if (!container) return;
+  // Small delay so dynamic HTML is in the DOM before we animate
+  setTimeout(function() {
+    container.querySelectorAll('.kpi').forEach(function(k, i) {
+      k.classList.remove('anim-in');
+      k.offsetWidth;
+      k.style.animationDelay = (0.05 + i * 0.1) + 's';
+      k.classList.add('anim-in');
+    });
+    container.querySelectorAll('.card').forEach(function(c, i) {
+      c.classList.remove('anim-in');
+      c.offsetWidth;
+      c.style.animationDelay = (i * 0.07) + 's';
+      c.classList.add('anim-in');
+    });
+    container.querySelectorAll('.cluster-card').forEach(function(c, i) {
+      c.classList.remove('anim-in');
+      c.offsetWidth;
+      c.style.animationDelay = (i * 0.05) + 's';
+      c.classList.add('anim-in');
+    });
+  }, 30);
+}
+
 function showPage(id, el) {
   var current = document.querySelector('.page.active');
 
@@ -2370,7 +2417,6 @@ function showPage(id, el) {
   }
 
   setTimeout(function() {
-    // Reset all pages
     document.querySelectorAll('.page').forEach(function(p) {
       p.classList.remove('active', 'page-entering');
       p.style.opacity    = '';
@@ -2381,29 +2427,18 @@ function showPage(id, el) {
 
     var page = document.getElementById('page-' + id);
     page.classList.add('active', 'page-entering');
-
-    // Animate KPI cards with stagger
-    page.querySelectorAll('.kpi').forEach(function(k) {
-      k.classList.remove('anim-in');
-      k.offsetWidth; // force reflow
-      k.classList.add('anim-in');
-    });
-
-    // Animate cards with stagger delay
-    page.querySelectorAll('.card').forEach(function(c, i) {
-      c.classList.remove('anim-in');
-      c.offsetWidth;
-      c.style.animationDelay = (i * 0.07) + 's';
-      c.classList.add('anim-in');
-    });
-
     if (el) el.classList.add('active');
     activePage = id;
+
+    // Render content first, then animate
     if (id === 'trend' && !charts.trendCR) renderTrend();
-    if (id === 'cluster') renderCluster();
-    if (id === 'intents') renderIntentTable();
-    if (id === 'detail') { populateDetailSelect(); renderDetail(); }
-    if (id === 'wow') { populateWowWeekPicker(); renderWow(); }
+    if (id === 'cluster')  { renderCluster();  }
+    if (id === 'intents')  { renderIntentTable(); animateTable(page); }
+    if (id === 'detail')   { populateDetailSelect(); renderDetail(); }
+    if (id === 'wow')      { populateWowWeekPicker(); renderWow(); }
+
+    // Trigger animations after render
+    triggerAnims(page);
     pushUrlState();
   }, 150);
 }
