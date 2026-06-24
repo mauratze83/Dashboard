@@ -39,7 +39,6 @@ header {
   position: sticky; top: 0; z-index: 200;
 }
 .logo { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; letter-spacing: .02em; flex-shrink: 0; }
-.logo-pip { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); flex-shrink: 0; }
 .logo-text { white-space: nowrap; }
 .header-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .header-meta { font-size: 11px; color: var(--tmid); font-family: var(--mono); }
@@ -66,14 +65,56 @@ nav {
 
 /* MAIN */
 main { padding: 22px 24px; max-width: 1400px; margin: 0 auto; }
-.page { display: none; }
-.page.active { display: block; }
 
-/* KPI ROW */
-.kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
+/* ── PAGE TRANSITIONS ── */
+.page { display: none; }
+.page.active {
+  display: block;
+  animation: pageIn .32s cubic-bezier(.22,.68,0,1.2) both;
+}
+@keyframes pageIn {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── STAGGERED KPI CARDS ── */
 .kpi {
   background: var(--card); border: 1px solid var(--border); border-radius: 10px;
   padding: 16px 18px;
+  opacity: 0;
+  animation: kpiIn .4s cubic-bezier(.22,.68,0,1.15) both;
+}
+.kpi:nth-child(1) { animation-delay: .04s; }
+.kpi:nth-child(2) { animation-delay: .10s; }
+.kpi:nth-child(3) { animation-delay: .16s; }
+.kpi:nth-child(4) { animation-delay: .22s; }
+@keyframes kpiIn {
+  from { opacity: 0; transform: translateY(18px) scale(.97); }
+  to   { opacity: 1; transform: translateY(0)   scale(1); }
+}
+
+/* ── CARD FADE-IN ── */
+.card {
+  background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+  padding: 18px 20px; margin-bottom: 16px;
+  animation: cardIn .38s ease both;
+}
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── PULSING LOGO PIP ── */
+.logo-pip {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+  animation: pip 2.4s ease-in-out infinite;
+  flex-shrink: 0;
+}
+@keyframes pip {
+  0%, 100% { box-shadow: 0 0 4px var(--accent); opacity: 1; }
+  50%       { box-shadow: 0 0 12px var(--accent), 0 0 24px var(--accent); opacity: .75; }
 }
 .kpi-label { font-size: 10px; font-weight: 600; letter-spacing: .1em; color: var(--tmid); text-transform: uppercase; margin-bottom: 8px; }
 .kpi-value { font-family: var(--mono); font-size: 26px; font-weight: 500; }
@@ -85,10 +126,6 @@ main { padding: 22px 24px; max-width: 1400px; margin: 0 auto; }
 .kpi-delta.down { color: var(--red); }
 
 /* CARDS */
-.card {
-  background: var(--card); border: 1px solid var(--border); border-radius: 10px;
-  padding: 18px 20px; margin-bottom: 16px;
-}
 .card-head {
   display: flex; align-items: center; justify-content: space-between;
   margin-bottom: 16px;
@@ -1140,19 +1177,22 @@ function renderOverview() {
   const labels = fd.weeks.map(w => 'KW' + w.split('-')[1]);
 
   // Update KPI cards dynamically
-  const totalInv = wt.reduce((s,d) => s+d.inv, 0);
-  const totalCon = wt.reduce((s,d) => s+d.con, 0);
-  const avgCR    = totalInv > 0 ? (totalCon/totalInv*100).toFixed(1) : '—';
-  const crFirst  = (wt[0] && wt[0].cr) ? wt[0].cr : 0;
-  const crLast   = (wt[wt.length-1] && wt[wt.length-1].cr) ? wt[wt.length-1].cr : 0;
-  const crDelta  = (crLast - crFirst).toFixed(1);
-  document.getElementById('ovKpiInv').textContent  = fmtK(totalInv);
-  document.getElementById('ovKpiCon').textContent  = fmtK(totalCon);
-  document.getElementById('ovKpiCR').textContent   = avgCR + ' %';
-  document.getElementById('ovKpiDelta').innerHTML  = `${crDelta >= 0 ? '▲' : '▼'} ${crDelta >= 0 ? '+':''}${crDelta} PP im Zeitraum`;
-  document.getElementById('ovKpiDelta').className  = 'kpi-delta ' + (crDelta >= 0 ? 'up' : 'down');
-  document.getElementById('ovKpiIntents').textContent = fd.intent_totals.length;
-  document.getElementById('ovKpiWeeks').textContent   = fd.weeks.length + ' Wochen';
+  var totalInv = wt.reduce(function(s,d) { return s+d.inv; }, 0);
+  var totalCon = wt.reduce(function(s,d) { return s+d.con; }, 0);
+  var avgCR    = totalInv > 0 ? (totalCon/totalInv*100).toFixed(1) : '—';
+  var crFirst  = (wt[0] && wt[0].cr) ? wt[0].cr : 0;
+  var crLast   = (wt[wt.length-1] && wt[wt.length-1].cr) ? wt[wt.length-1].cr : 0;
+  var crDelta  = (crLast - crFirst).toFixed(1);
+
+  // Animated counters
+  animateCounter(document.getElementById('ovKpiInv'),     fmtK(totalInv), 1000);
+  animateCounter(document.getElementById('ovKpiCon'),     fmtK(totalCon), 1000);
+  animateCounter(document.getElementById('ovKpiCR'),      avgCR + ' %',   1200);
+  animateCounter(document.getElementById('ovKpiIntents'), fd.intent_totals.length.toString(), 600);
+
+  document.getElementById('ovKpiWeeks').textContent  = fd.weeks.length + ' Wochen';
+  document.getElementById('ovKpiDelta').innerHTML    = (crDelta >= 0 ? '▲' : '▼') + ' ' + (crDelta >= 0 ? '+':'') + crDelta + ' PP im Zeitraum';
+  document.getElementById('ovKpiDelta').className    = 'kpi-delta ' + (crDelta >= 0 ? 'up' : 'down');
 
   destroy('ovCrLine');
   charts.ovCrLine = new Chart(document.getElementById('ovCrLine'), {
@@ -1823,7 +1863,8 @@ Sei präzise, nutze konkrete Zahlen aus den Daten. Keine allgemeinen Floskeln. M
       .map(function(b) { return b.text; })
       .join('');
 
-    document.getElementById('wowSummaryText').innerHTML = formatSummary(fullText);
+    var formatted = formatSummary(fullText);
+    typewriterReveal(document.getElementById('wowSummaryText'), formatted, 12);
     document.getElementById('wowSummaryMeta').textContent =
       'KI-generierte Analyse \u00b7 ' + prevKW + ' \u2192 ' + lastKW + ' \u00b7 ' +
       new Date().toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'}) + ' Uhr';
@@ -2239,20 +2280,108 @@ function rebuildWowFromWeeks() {
   pushUrlState();
 }
 
+/* ═══════════════════ COUNTER ANIMATION ═══════════════════ */
+function animateCounter(el, target, duration, suffix) {
+  if (!el) return;
+  if (duration === undefined) duration = 900;
+  if (suffix === undefined) suffix = '';
+  var start = 0;
+  var startTime = null;
+  // Parse target number from formatted string like "2,93M" or "58,4 %"
+  var numTarget = parseFloat(String(target).replace(/[^0-9.,]/g, '').replace(',', '.')) || 0;
+  var prefix = String(target).match(/^[^0-9]*/) ? '' : '';
+  var isSuffix = String(target).match(/([A-Z%]+)$/);
+  var unit = isSuffix ? isSuffix[1] : suffix;
+  var isDecimal = String(target).indexOf(',') > -1 || String(target).indexOf('.') > -1;
+
+  function step(timestamp) {
+    if (!startTime) startTime = timestamp;
+    var progress = Math.min((timestamp - startTime) / duration, 1);
+    // Ease out cubic
+    var eased = 1 - Math.pow(1 - progress, 3);
+    var current = numTarget * eased;
+
+    var display;
+    if (numTarget >= 1e6)     display = (current / 1e6).toFixed(2) + 'M';
+    else if (numTarget >= 1e3) display = (current / 1e3).toFixed(1) + 'K';
+    else if (isDecimal)        display = current.toFixed(1);
+    else                       display = Math.round(current).toString();
+
+    el.textContent = display + (unit && !display.endsWith(unit) ? ' ' + unit : '');
+    if (progress < 1) requestAnimationFrame(step);
+    else el.textContent = target; // snap to exact final value
+  }
+  requestAnimationFrame(step);
+}
+
+/* ═══════════════════ TYPEWRITER EFFECT ═══════════════════ */
+function typewriterReveal(el, text, speed) {
+  if (!el) return;
+  if (speed === undefined) speed = 8; // chars per frame at 60fps ≈ fast but visible
+  el.innerHTML = '';
+  var i = 0;
+  var isTag = false;
+  var buf = '';
+
+  function tick() {
+    // Write `speed` chars per tick but skip over HTML tags instantly
+    var charsThisTick = 0;
+    while (i < text.length && charsThisTick < speed) {
+      var ch = text[i];
+      if (ch === '<') { isTag = true; }
+      if (isTag) { buf += ch; if (ch === '>') { isTag = false; buf = ''; el.innerHTML = text.slice(0, i+1); } }
+      else { el.innerHTML = text.slice(0, i+1); charsThisTick++; }
+      i++;
+    }
+    if (i < text.length) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
 /* ═══════════════════ NAV ═══════════════════ */
 let activePage = 'overview';
 function showPage(id, el) {
-  document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
-  document.querySelectorAll('.nav-tab').forEach(function(t) { t.classList.remove('active'); });
-  document.getElementById('page-' + id).classList.add('active');
-  if (el) el.classList.add('active');
-  activePage = id;
-  if (id === 'trend' && !charts.trendCR) renderTrend();
-  if (id === 'cluster') renderCluster();
-  if (id === 'intents') renderIntentTable();
-  if (id === 'detail') { populateDetailSelect(); renderDetail(); }
-  if (id === 'wow') { populateWowWeekPicker(); renderWow(); }
-  pushUrlState();
+  // Fade out current page first
+  var current = document.querySelector('.page.active');
+  if (current) {
+    current.style.animation = 'none';
+    current.style.opacity   = '0';
+    current.style.transform = 'translateY(-8px)';
+    current.style.transition = 'opacity .15s ease, transform .15s ease';
+  }
+
+  setTimeout(function() {
+    document.querySelectorAll('.page').forEach(function(p) {
+      p.classList.remove('active');
+      p.style.transition = '';
+      p.style.opacity    = '';
+      p.style.transform  = '';
+    });
+    document.querySelectorAll('.nav-tab').forEach(function(t) { t.classList.remove('active'); });
+
+    var page = document.getElementById('page-' + id);
+    page.classList.add('active');
+    // Re-trigger animation by forcing reflow
+    page.style.animation = 'none';
+    page.offsetHeight; // reflow
+    page.style.animation = '';
+
+    // Re-trigger KPI stagger
+    page.querySelectorAll('.kpi').forEach(function(k) {
+      k.style.animation = 'none';
+      k.offsetHeight;
+      k.style.animation = '';
+    });
+
+    if (el) el.classList.add('active');
+    activePage = id;
+    if (id === 'trend' && !charts.trendCR) renderTrend();
+    if (id === 'cluster') renderCluster();
+    if (id === 'intents') renderIntentTable();
+    if (id === 'detail') { populateDetailSelect(); renderDetail(); }
+    if (id === 'wow') { populateWowWeekPicker(); renderWow(); }
+    pushUrlState();
+  }, 120);
 }
 
 /* ═══════════════════ UTILS ═══════════════════ */
