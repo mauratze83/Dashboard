@@ -823,8 +823,19 @@ body.light .theme-toggle::after { transform: translateX(14px); background: var(-
         <div class="card-title">Management Summary</div>
         <div class="card-sub" id="wowSummaryMeta">KI-generierte Analyse des Wochenvergleichs</div>
       </div>
-      <div style="display:flex; align-items:center; gap:8px;">
-        <span id="apiKeyStatus" style="font-size:11px; font-family:var(--mono);"></span>
+      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+        <div id="apiKeySection" style="display:flex; align-items:center; gap:6px;">
+          <input type="password" id="apiKeyInput"
+            placeholder="sk-ant-… API Key eingeben"
+            style="width:200px; font-family:var(--mono); font-size:11px;"
+            onkeydown="if(event.key==='Enter') saveApiKey()"
+          >
+          <button class="btn" onclick="saveApiKey()" style="white-space:nowrap;">Speichern</button>
+        </div>
+        <div id="apiKeySet" style="display:none; align-items:center; gap:6px;">
+          <span style="font-size:11px; color:var(--green); font-family:var(--mono);">✓ Key gespeichert</span>
+          <button class="btn" onclick="clearApiKey()" style="font-size:10px; padding:3px 8px;" title="Key löschen">×</button>
+        </div>
         <button class="btn primary" id="wowSummaryBtn" onclick="generateWowSummary()">✦ Analyse generieren</button>
       </div>
     </div>
@@ -1672,30 +1683,51 @@ function renderWow() {
   }).join('');
 }
 
-/* ═══════════════════ API KEY ═══════════════════ */
-// ⬇ API Key hier eintragen
-var _sessionApiKey = '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';
+/* ═══════════════════ API KEY (localStorage) ═══════════════════ */
+var _sessionApiKey = '';
 
-(function() {
-  var el = document.getElementById('apiKeyStatus');
-  if (!el) return;
-  if (_sessionApiKey && _sessionApiKey !== 'DEIN_API_KEY_HIER') {
-    el.textContent = '✓ API Key gesetzt';
-    el.style.color = 'var(--green)';
-  } else {
-    el.textContent = '⚠ Kein API Key — bitte in HTML eintragen';
-    el.style.color = 'var(--amber)';
+function _initApiKey() {
+  try { _sessionApiKey = localStorage.getItem('chatbot_dash_apikey') || ''; } catch(e) { _sessionApiKey = ''; }
+  var hasKey = _sessionApiKey.length > 0;
+  document.getElementById('apiKeySection').style.display = hasKey ? 'none' : 'flex';
+  document.getElementById('apiKeySet').style.display    = hasKey ? 'flex' : 'none';
+}
+
+function saveApiKey() {
+  var val = (document.getElementById('apiKeyInput').value || '').trim();
+  if (!val.startsWith('sk-ant-')) {
+    document.getElementById('apiKeyInput').style.borderColor = 'var(--red)';
+    document.getElementById('apiKeyInput').placeholder = 'Ungültig — muss mit sk-ant- beginnen';
+    return;
   }
-})();
+  try { localStorage.setItem('chatbot_dash_apikey', val); } catch(e) {}
+  _sessionApiKey = val;
+  document.getElementById('apiKeyInput').value = '';
+  document.getElementById('apiKeyInput').style.borderColor = '';
+  document.getElementById('apiKeySection').style.display = 'none';
+  document.getElementById('apiKeySet').style.display = 'flex';
+  showToast('✓ API Key gespeichert', 'success');
+}
+
+function clearApiKey() {
+  try { localStorage.removeItem('chatbot_dash_apikey'); } catch(e) {}
+  _sessionApiKey = '';
+  document.getElementById('apiKeySet').style.display = 'none';
+  document.getElementById('apiKeySection').style.display = 'flex';
+  document.getElementById('apiKeyInput').placeholder = 'sk-ant-… API Key eingeben';
+  showToast('Key gelöscht', '');
+}
 
 /* ═══════════════════ WoW MGMT SUMMARY (Claude API) ═══════════════════ */
 let summaryAbort = null;
 
 async function generateWowSummary() {
-  if (!_sessionApiKey || _sessionApiKey === 'DEIN_API_KEY_HIER') {
-    document.getElementById('wowSummaryText').innerHTML =
-      '<span style="color:var(--amber)">⚠ Bitte zuerst den API Key in der HTML-Datei eintragen (Zeile mit DEIN_API_KEY_HIER).</span>';
-    document.getElementById('wowSummaryContent').style.display = 'block';
+  if (!_sessionApiKey) {
+    var inp = document.getElementById('apiKeyInput');
+    if (inp) { inp.style.borderColor = 'var(--amber)'; inp.focus(); }
+    document.getElementById('apiKeySection').style.display = 'flex';
+    document.getElementById('apiKeySet').style.display = 'none';
+    showToast('Bitte zuerst API Key eingeben und speichern', 'error');
     return;
   }
 
@@ -2513,6 +2545,7 @@ function buildAndRefresh(rows, fileName) {
 })();
 
 /* ═══════════════════ INIT ═══════════════════ */
+_initApiKey();
 populateTimeFilter();
 populateWowWeekPicker();
 renderOverview();
