@@ -80,44 +80,50 @@ main { padding: 22px 24px; max-width: 1400px; margin: 0 auto; }
 /* KPI ROW */
 .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
 
+/* ── PAGE TRANSITIONS ── */
+@keyframes pageIn {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.page-entering { animation: pageIn .4s cubic-bezier(.25,.46,.45,.94) both; }
+
 /* ── STAGGERED KPI CARDS ── */
+/* Always visible by default — anim-in class triggers entrance */
 .kpi {
   background: var(--card); border: 1px solid var(--border); border-radius: 10px;
   padding: 16px 18px;
-  opacity: 0;
-  animation: kpiIn .4s cubic-bezier(.22,.68,0,1.15) both;
 }
-.kpi:nth-child(1) { animation-delay: .04s; }
-.kpi:nth-child(2) { animation-delay: .10s; }
-.kpi:nth-child(3) { animation-delay: .16s; }
-.kpi:nth-child(4) { animation-delay: .22s; }
 @keyframes kpiIn {
-  from { opacity: 0; transform: translateY(18px) scale(.97); }
-  to   { opacity: 1; transform: translateY(0)   scale(1); }
+  from { opacity: 0; transform: translateY(22px) scale(.94); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
 }
+.kpi.anim-in:nth-child(1) { animation: kpiIn .5s cubic-bezier(.34,1.4,.64,1) .05s both; }
+.kpi.anim-in:nth-child(2) { animation: kpiIn .5s cubic-bezier(.34,1.4,.64,1) .15s both; }
+.kpi.anim-in:nth-child(3) { animation: kpiIn .5s cubic-bezier(.34,1.4,.64,1) .25s both; }
+.kpi.anim-in:nth-child(4) { animation: kpiIn .5s cubic-bezier(.34,1.4,.64,1) .35s both; }
 
 /* ── CARD FADE-IN ── */
 .card {
   background: var(--card); border: 1px solid var(--border); border-radius: 10px;
   padding: 18px 20px; margin-bottom: 16px;
-  animation: cardIn .38s ease both;
 }
 @keyframes cardIn {
-  from { opacity: 0; transform: translateY(10px); }
+  from { opacity: 0; transform: translateY(14px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+.card.anim-in { animation: cardIn .5s cubic-bezier(.25,.46,.45,.94) both; }
 
 /* ── PULSING LOGO PIP ── */
 .logo-pip {
   width: 7px; height: 7px; border-radius: 50%;
   background: var(--accent);
-  box-shadow: 0 0 8px var(--accent);
-  animation: pip 2.4s ease-in-out infinite;
+  box-shadow: 0 0 6px var(--accent);
+  animation: pip 2.6s ease-in-out infinite;
   flex-shrink: 0;
 }
 @keyframes pip {
-  0%, 100% { box-shadow: 0 0 4px var(--accent); opacity: 1; }
-  50%       { box-shadow: 0 0 12px var(--accent), 0 0 24px var(--accent); opacity: .75; }
+  0%, 100% { box-shadow: 0 0 4px var(--accent); transform: scale(1); }
+  50%       { box-shadow: 0 0 16px var(--accent), 0 0 32px var(--accent); transform: scale(1.25); }
 }
 .kpi-label { font-size: 10px; font-weight: 600; letter-spacing: .1em; color: var(--tmid); text-transform: uppercase; margin-bottom: 8px; }
 .kpi-value { font-family: var(--mono); font-size: 26px; font-weight: 500; }
@@ -2284,96 +2290,111 @@ function rebuildWowFromWeeks() {
 }
 
 /* ═══════════════════ COUNTER ANIMATION ═══════════════════ */
-function animateCounter(el, target, duration, suffix) {
+function animateCounter(el, finalValue, duration) {
   if (!el) return;
-  if (duration === undefined) duration = 900;
-  if (suffix === undefined) suffix = '';
-  var start = 0;
-  var startTime = null;
-  // Parse target number from formatted string like "2,93M" or "58,4 %"
-  var numTarget = parseFloat(String(target).replace(/[^0-9.,]/g, '').replace(',', '.')) || 0;
-  var prefix = String(target).match(/^[^0-9]*/) ? '' : '';
-  var isSuffix = String(target).match(/([A-Z%]+)$/);
-  var unit = isSuffix ? isSuffix[1] : suffix;
-  var isDecimal = String(target).indexOf(',') > -1 || String(target).indexOf('.') > -1;
+  if (!duration) duration = 1000;
 
-  function step(timestamp) {
-    if (!startTime) startTime = timestamp;
-    var progress = Math.min((timestamp - startTime) / duration, 1);
-    // Ease out cubic
-    var eased = 1 - Math.pow(1 - progress, 3);
-    var current = numTarget * eased;
+  // Parse the final display string to get the raw number + unit
+  var s = String(finalValue).trim();
+  var unit = '';
+  var multiplier = 1;
+  var decimals = 0;
+
+  if (s.indexOf('M') > -1)      { multiplier = 1e6; unit = 'M'; decimals = 2; }
+  else if (s.indexOf('K') > -1) { multiplier = 1e3; unit = 'K'; decimals = 1; }
+  else if (s.indexOf('%') > -1) { unit = ' %'; decimals = 1; }
+
+  // Extract numeric part
+  var numStr = s.replace(/[^0-9,.]/g, '').replace(',', '.');
+  var target  = parseFloat(numStr) * multiplier;
+  if (isNaN(target) || target === 0) { el.textContent = finalValue; return; }
+
+  var startTime = null;
+
+  function step(ts) {
+    if (!startTime) startTime = ts;
+    var prog   = Math.min((ts - startTime) / duration, 1);
+    var eased  = 1 - Math.pow(1 - prog, 3); // ease-out cubic
+    var current = target * eased;
 
     var display;
-    if (numTarget >= 1e6)     display = (current / 1e6).toFixed(2) + 'M';
-    else if (numTarget >= 1e3) display = (current / 1e3).toFixed(1) + 'K';
-    else if (isDecimal)        display = current.toFixed(1);
-    else                       display = Math.round(current).toString();
+    if (unit === 'M')       display = (current / 1e6).toFixed(decimals) + 'M';
+    else if (unit === 'K')  display = (current / 1e3).toFixed(decimals) + 'K';
+    else if (unit === ' %') display = current.toFixed(decimals) + ' %';
+    else                    display = Math.round(current).toString();
 
-    el.textContent = display + (unit && !display.endsWith(unit) ? ' ' + unit : '');
-    if (progress < 1) requestAnimationFrame(step);
-    else el.textContent = target; // snap to exact final value
+    el.textContent = display;
+    if (prog < 1) requestAnimationFrame(step);
+    else el.textContent = finalValue; // snap to exact
   }
   requestAnimationFrame(step);
 }
 
 /* ═══════════════════ TYPEWRITER EFFECT ═══════════════════ */
-function typewriterReveal(el, text, speed) {
+function typewriterReveal(el, html, charsPerFrame) {
   if (!el) return;
-  if (speed === undefined) speed = 8; // chars per frame at 60fps ≈ fast but visible
-  el.innerHTML = '';
-  var i = 0;
-  var isTag = false;
-  var buf = '';
+  if (!charsPerFrame) charsPerFrame = 4; // slower = more readable
 
-  function tick() {
-    // Write `speed` chars per tick but skip over HTML tags instantly
-    var charsThisTick = 0;
-    while (i < text.length && charsThisTick < speed) {
-      var ch = text[i];
-      if (ch === '<') { isTag = true; }
-      if (isTag) { buf += ch; if (ch === '>') { isTag = false; buf = ''; el.innerHTML = text.slice(0, i+1); } }
-      else { el.innerHTML = text.slice(0, i+1); charsThisTick++; }
-      i++;
-    }
-    if (i < text.length) requestAnimationFrame(tick);
+  // Strip HTML tags to get visible text length, render char by char on visible text
+  // Simpler & more reliable: reveal the full HTML but add chars progressively via a mask
+  // Best approach for formatted HTML: reveal in word chunks
+  var words = html.split(/(?<=>\s*|\s)(?=\S)/); // split on word boundaries
+  el.innerHTML = '';
+  var wordIdx = 0;
+  var accumulated = '';
+
+  function revealNextWord() {
+    if (wordIdx >= words.length) return;
+    accumulated += words[wordIdx];
+    el.innerHTML = accumulated;
+    wordIdx++;
+    // Speed: ~30ms per word = smooth but clearly visible typing effect
+    var delay = words[wordIdx - 1].length * 18;
+    if (delay < 20) delay = 20;
+    if (delay > 120) delay = 120;
+    setTimeout(revealNextWord, delay);
   }
-  requestAnimationFrame(tick);
+  revealNextWord();
 }
 
 /* ═══════════════════ NAV ═══════════════════ */
 let activePage = 'overview';
 function showPage(id, el) {
-  // Fade out current page first
   var current = document.querySelector('.page.active');
-  if (current) {
-    current.style.animation = 'none';
+
+  // Fade out current
+  if (current && current.id !== 'page-' + id) {
     current.style.opacity   = '0';
-    current.style.transform = 'translateY(-8px)';
-    current.style.transition = 'opacity .15s ease, transform .15s ease';
+    current.style.transform = 'translateY(-10px)';
+    current.style.transition = 'opacity .18s ease, transform .18s ease';
   }
 
   setTimeout(function() {
+    // Reset all pages
     document.querySelectorAll('.page').forEach(function(p) {
-      p.classList.remove('active');
-      p.style.transition = '';
+      p.classList.remove('active', 'page-entering');
       p.style.opacity    = '';
       p.style.transform  = '';
+      p.style.transition = '';
     });
     document.querySelectorAll('.nav-tab').forEach(function(t) { t.classList.remove('active'); });
 
     var page = document.getElementById('page-' + id);
-    page.classList.add('active');
-    // Re-trigger animation by forcing reflow
-    page.style.animation = 'none';
-    page.offsetHeight; // reflow
-    page.style.animation = '';
+    page.classList.add('active', 'page-entering');
 
-    // Re-trigger KPI stagger
+    // Animate KPI cards with stagger
     page.querySelectorAll('.kpi').forEach(function(k) {
-      k.style.animation = 'none';
-      k.offsetHeight;
-      k.style.animation = '';
+      k.classList.remove('anim-in');
+      k.offsetWidth; // force reflow
+      k.classList.add('anim-in');
+    });
+
+    // Animate cards with stagger delay
+    page.querySelectorAll('.card').forEach(function(c, i) {
+      c.classList.remove('anim-in');
+      c.offsetWidth;
+      c.style.animationDelay = (i * 0.07) + 's';
+      c.classList.add('anim-in');
     });
 
     if (el) el.classList.add('active');
@@ -2384,7 +2405,7 @@ function showPage(id, el) {
     if (id === 'detail') { populateDetailSelect(); renderDetail(); }
     if (id === 'wow') { populateWowWeekPicker(); renderWow(); }
     pushUrlState();
-  }, 120);
+  }, 150);
 }
 
 /* ═══════════════════ UTILS ═══════════════════ */
@@ -2683,6 +2704,18 @@ populateWowWeekPicker();
 renderOverview();
 renderIntentTable();
 readUrlState();
+
+// Trigger entrance animations on first load
+setTimeout(function() {
+  var firstPage = document.querySelector('.page.active');
+  if (!firstPage) return;
+  firstPage.classList.add('page-entering');
+  firstPage.querySelectorAll('.kpi').forEach(function(k) { k.classList.add('anim-in'); });
+  firstPage.querySelectorAll('.card').forEach(function(c, i) {
+    c.style.animationDelay = (i * 0.07) + 's';
+    c.classList.add('anim-in');
+  });
+}, 50);
 </script>
 </body>
 </html>
