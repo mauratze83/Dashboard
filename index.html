@@ -239,7 +239,8 @@ body.drag-active::after{content:'CSV hier ablegen';position:fixed;top:0;left:0;r
 #pwBtn{margin-top:14px;width:100%;background:var(--accent);color:#fff;border:none;border-radius:8px;font-family:var(--sans);font-size:14px;font-weight:600;padding:11px;cursor:pointer;transition:background .15s}
 #pwBtn:hover{background:#3a7ae8}
 #pwErr{font-size:12px;color:var(--red);margin-top:10px;min-height:18px;transition:opacity .2s}
-</style>
+
+/* PRINT / PDF */
 @media print{
   header,nav,#timeFilterBar,.filters,.btn,.export-btn,.upload-btn,.theme-toggle,#wowSummaryCard .card-head>div:last-child,#toastBar,.toast-bar{display:none!important}
   body{background:#fff!important;color:#000!important}
@@ -252,7 +253,6 @@ body.drag-active::after{content:'CSV hier ablegen';position:fixed;top:0;left:0;r
   .chart-wrap{page-break-inside:avoid}
   h1{font-size:18px;margin-bottom:12px}
 }
-
 </style>
 </head>
 <body>
