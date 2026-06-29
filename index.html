@@ -362,7 +362,7 @@ body.drag-active::after{content:'CSV hier ablegen';position:fixed;top:0;left:0;r
       <div style="color:var(--tmid);font-size:13px"><span id="wowDots" style="font-size:18px;letter-spacing:3px">···</span> Analysiere…</div>
     </div>
   </div>
-  <div class="wow-kpi-grid" id="wowKpis"></div>
+  <div class="wow-kpi-grid" style="grid-template-columns:repeat(3,1fr)" id="wowKpis"></div>
   <div class="filters">
     <span class="filter-label">Vergleich:</span>
     <select id="wowWeekA" onchange="rebuildWow()"></select>
@@ -382,6 +382,7 @@ body.drag-active::after{content:'CSV hier ablegen';position:fixed;top:0;left:0;r
     <div class="card"><div class="card-head"><div class="card-title">Volumen-Shifts Top 12</div></div><div class="chart-wrap h280"><canvas id="wowVolChart"></canvas></div></div>
     <div class="card"><div class="card-head"><div class="card-title">CR-Shifts Top 12</div></div><div class="chart-wrap h280"><canvas id="wowCrChart"></canvas></div></div>
   </div>
+  <div class="card"><div class="card-head"><div class="card-title">Contained-Volumen Shifts Top 12</div><div class="card-sub">Absolute Veränderung der containten Anfragen — Kernmetrik für Bot-Leistung</div></div><div class="chart-wrap h280"><canvas id="wowConChart"></canvas></div></div>
   <div class="card" style="padding:0;overflow:hidden">
     <div class="table-wrap">
       <table><thead><tr id="wowThead">
@@ -728,6 +729,9 @@ function renderOverview(){
   var crF=(wt[0]||{}).cr||0,crL=(wt[wt.length-1]||{}).cr||0,dCR=(crL-crF).toFixed(1);
   animCount(document.getElementById('kpiInv'),fmtK(inv));
   animCount(document.getElementById('kpiCon'),fmtK(con));
+  var conSubEl=document.querySelector('#kpiCon+.kpi-sub,.kpi-value.green~.kpi-sub');
+  var conSubEl2=document.getElementById('kpiCon');
+  if(conSubEl2&&conSubEl2.nextElementSibling)conSubEl2.nextElementSibling.textContent='Ø '+fmtK(Math.round(con/(wt.length||1)))+' / Woche';
   animCount(document.getElementById('kpiCR'),cr+' %',1200);
   animCount(document.getElementById('kpiCS'),fmtE(cs),1200);
   animCount(document.getElementById('kpiIntents'),fd.it.length.toString(),600);
@@ -1037,16 +1041,19 @@ function renderWow(){
   var tIC=wd.reduce((s,r)=>s+r.inv_cur,0),tIP=wd.reduce((s,r)=>s+r.inv_prev,0);
   var tCC=wd.reduce((s,r)=>s+r.con_cur,0),tCP=wd.reduce((s,r)=>s+r.con_prev,0);
   var crC=tIC?(tCC/tIC*100).toFixed(1):0,crP=tIP?(tCP/tIP*100).toFixed(1):0,dCR=(crC-crP).toFixed(1);
+  var dCC=tCC-tCP, dCCpct=tCP>0?((dCC/tCP)*100).toFixed(1):0;
   var lastKW=(WOW_DATA.last||'').split('-')[1],prevKW=(WOW_DATA.prev||'').split('-')[1];
   document.getElementById('wowKpis').innerHTML=
     '<div class="kpi"><div class="kpi-label">Involved KW'+prevKW+'</div><div class="kpi-value">'+fmtK(tIP)+'</div></div>'+
     '<div class="kpi"><div class="kpi-label">Involved KW'+lastKW+'</div><div class="kpi-value">'+fmtK(tIC)+'</div><div class="kpi-delta '+(tIC>=tIP?'up':'down')+'">'+(tIC>=tIP?'▲':'▼')+' '+fmtK(Math.abs(tIC-tIP))+'</div></div>'+
+    '<div class="kpi"><div class="kpi-label">Contained KW'+prevKW+'</div><div class="kpi-value">'+fmtK(tCP)+'</div></div>'+
+    '<div class="kpi"><div class="kpi-label">Contained KW'+lastKW+'</div><div class="kpi-value green">'+fmtK(tCC)+'</div><div class="kpi-delta '+(dCC>=0?'up':'down')+'">'+(dCC>=0?'▲':'▼')+' '+fmtK(Math.abs(dCC))+' ('+Math.abs(dCCpct)+'%)</div></div>'+
     '<div class="kpi"><div class="kpi-label">CR KW'+prevKW+'</div><div class="kpi-value">'+crP+'%</div></div>'+
     '<div class="kpi"><div class="kpi-label">CR KW'+lastKW+'</div><div class="kpi-value '+(dCR>=0?'green':'red')+'">'+crC+'%</div><div class="kpi-delta '+(dCR>=0?'up':'down')+'">'+(dCR>=0?'▲':'▼')+' '+Math.abs(dCR).toFixed(1)+' PP</div></div>';
   trigAnim(document.getElementById('wowKpis'));
-  // Update thead
+  // Update thead — now includes Contained columns
   var th=document.getElementById('wowThead');
-  if(th)th.innerHTML='<th>Intent</th><th>Involved KW'+prevKW+'</th><th>Involved KW'+lastKW+'</th><th>Vol-Shift</th><th>CR KW'+prevKW+'</th><th>CR KW'+lastKW+'</th><th>CR-Shift</th><th>€CS-Shift</th><th>Signal</th>';
+  if(th)th.innerHTML='<th>Intent</th><th>Inv. KW'+prevKW+'</th><th>Inv. KW'+lastKW+'</th><th>Vol-Shift</th><th>Con. KW'+prevKW+'</th><th>Con. KW'+lastKW+'</th><th>Con-Shift</th><th>CR KW'+prevKW+'</th><th>CR KW'+lastKW+'</th><th>CR-Shift</th><th>€CS-Shift</th><th>Signal</th>';
   // Filter rows
   var rows=wd.slice();
   if(wowView==='vol')rows=rows.filter(r=>Math.abs(r.inv_delta_pct)>=Math.max(vt,1));
@@ -1054,23 +1061,31 @@ function renderWow(){
   else if(wowView==='warn')rows=rows.filter(r=>Math.abs(r.inv_delta_pct)>=10||Math.abs(r.cr_delta)>=5);
   else rows=rows.filter(r=>Math.abs(r.inv_delta_pct)>=vt||Math.abs(r.cr_delta)>=ct);
   rows.sort((a,b)=>(Math.abs(b.inv_delta_pct)*.5+Math.abs(b.cr_delta)*2)-(Math.abs(a.inv_delta_pct)*.5+Math.abs(a.cr_delta)*2));
-  // Charts
+  // Charts — add Contained shift chart
   var bv=wd.slice().sort((a,b)=>Math.abs(b.inv_delta)-Math.abs(a.inv_delta)).slice(0,12);
   var bc=wd.filter(r=>r.inv_cur>=100).slice().sort((a,b)=>Math.abs(b.cr_delta)-Math.abs(a.cr_delta)).slice(0,12);
+  var bcon=wd.filter(r=>r.inv_cur>=50).slice().sort((a,b)=>Math.abs((b.con_cur||0)-(b.con_prev||0))-Math.abs((a.con_cur||0)-(a.con_prev||0))).slice(0,12);
   destroy('wowVolChart');
   charts.wowVolChart=new Chart(document.getElementById('wowVolChart'),{type:'bar',data:{labels:bv.map(r=>r.i.replace(/_/g,' ')),datasets:[{label:'Δ Involved',data:bv.map(r=>r.inv_delta),backgroundColor:bv.map(r=>r.inv_delta>=0?G+'99':R+'88'),borderColor:bv.map(r=>r.inv_delta>=0?G:R),borderWidth:1,borderRadius:3}]},options:baseOpts({indexAxis:'y',plugins:Object.assign({},baseOpts().plugins,{legend:{display:false}}),scales:{x:Object.assign({},baseOpts().scales.x,{ticks:Object.assign({},baseOpts().scales.x.ticks,{callback:v=>(v>=0?'+':'')+Math.round(v/1000)+'K'})}),y:Object.assign({},baseOpts().scales.y,{ticks:{color:'#7a84a0',font:{family:'Inter',size:9}}})}})});
   destroy('wowCrChart');
   charts.wowCrChart=new Chart(document.getElementById('wowCrChart'),{type:'bar',data:{labels:bc.map(r=>r.i.replace(/_/g,' ')),datasets:[{label:'Δ CR PP',data:bc.map(r=>r.cr_delta),backgroundColor:bc.map(r=>r.cr_delta>=0?G+'99':R+'88'),borderColor:bc.map(r=>r.cr_delta>=0?G:R),borderWidth:1,borderRadius:3}]},options:baseOpts({indexAxis:'y',plugins:Object.assign({},baseOpts().plugins,{legend:{display:false}}),scales:{x:Object.assign({},baseOpts().scales.x,{ticks:Object.assign({},baseOpts().scales.x.ticks,{callback:v=>(v>=0?'+':'')+v.toFixed(1)+' PP'})}),y:Object.assign({},baseOpts().scales.y,{ticks:{color:'#7a84a0',font:{family:'Inter',size:9}}})}})});
-  // Table
-  var maxV=Math.max(...wd.map(r=>Math.abs(r.inv_delta_pct)));
+  destroy('wowConChart');
+  charts.wowConChart=new Chart(document.getElementById('wowConChart'),{type:'bar',data:{labels:bcon.map(r=>r.i.replace(/_/g,' ')),datasets:[{label:'Δ Contained',data:bcon.map(r=>(r.con_cur||0)-(r.con_prev||0)),backgroundColor:bcon.map(r=>((r.con_cur||0)-(r.con_prev||0))>=0?G+'99':R+'88'),borderColor:bcon.map(r=>((r.con_cur||0)-(r.con_prev||0))>=0?G:R),borderWidth:1,borderRadius:3}]},options:baseOpts({indexAxis:'y',plugins:Object.assign({},baseOpts().plugins,{legend:{display:false}}),scales:{x:Object.assign({},baseOpts().scales.x,{ticks:Object.assign({},baseOpts().scales.x.ticks,{callback:v=>(v>=0?'+':'')+Math.round(v/1000)+'K'})}),y:Object.assign({},baseOpts().scales.y,{ticks:{color:'#7a84a0',font:{family:'Inter',size:9}}})}})});
+  // Table — now includes Contained columns
   document.getElementById('wowTbody').innerHTML=rows.map(r=>{
     var sig=getSignal(r),tag=getTag(r.i),cat0=r.i.split('_')[0];
+    var conDelta=(r.con_cur||0)-(r.con_prev||0);
+    var conPct=r.con_prev>0?((conDelta/r.con_prev)*100).toFixed(1):0;
     var vPill=r.inv_delta_pct>0?'<span class="pill pill-up">▲ +'+r.inv_delta_pct.toFixed(1)+'%</span>':r.inv_delta_pct<0?'<span class="pill pill-down">▼ '+r.inv_delta_pct.toFixed(1)+'%</span>':'<span class="pill pill-flat">—</span>';
+    var conPill=conDelta>0?'<span class="pill pill-up">▲ +'+fmtK(conDelta)+'</span>':conDelta<0?'<span class="pill pill-down">▼ '+fmtK(Math.abs(conDelta))+'</span>':'<span class="pill pill-flat">—</span>';
     var cPill=r.cr_delta>0.4?'<span class="pill pill-up">▲ +'+r.cr_delta.toFixed(1)+' PP</span>':r.cr_delta<-0.4?'<span class="pill pill-down">▼ '+r.cr_delta.toFixed(1)+' PP</span>':'<span class="pill pill-flat">±0</span>';
     var csPill=(r.cs_delta||0)>0?'<span class="cs-val">▲ +'+fmtE(r.cs_delta)+'</span>':(r.cs_delta||0)<0?'<span style="color:var(--red)">▼ '+fmtE(Math.abs(r.cs_delta))+'</span>':'—';
     return'<tr data-i="'+r.i+'" onclick="openDetail(this.dataset.i)" title="→">'+
       '<td class="name-cell"><span class="tag tag-'+tag+'">'+cat0+'</span>'+r.i.split('_').slice(1).join(' ')+'<span style="float:right;color:var(--tlo);font-size:10px">→</span></td>'+
       '<td>'+fmtK(r.inv_prev)+'</td><td>'+fmtK(r.inv_cur)+'</td><td>'+vPill+'</td>'+
+      '<td class="'+crCls(r.cr_prev)+'">'+fmtK(r.con_prev||0)+'</td>'+
+      '<td class="'+crCls(r.cr_cur)+'">'+fmtK(r.con_cur||0)+'</td>'+
+      '<td>'+conPill+'</td>'+
       '<td class="'+crCls(r.cr_prev)+'">'+r.cr_prev.toFixed(1)+'%</td>'+
       '<td class="'+crCls(r.cr_cur)+'">'+r.cr_cur.toFixed(1)+'%</td>'+
       '<td>'+cPill+'</td><td>'+csPill+'</td>'+
@@ -1094,7 +1109,11 @@ async function genSummary(){
   var bc=wd.filter(r=>r.inv_cur>=50).sort((a,b)=>Math.abs(b.cr_delta)-Math.abs(a.cr_delta)).slice(0,6);
   var crit=wd.filter(r=>r.cr_cur<30&&r.inv_cur>100).sort((a,b)=>a.cr_cur-b.cr_cur).slice(0,3);
   var lastKW=WOW_DATA.last,prevKW=WOW_DATA.prev;
-  var prompt='Du bist Analyst für einen Kundendienst-Chatbot eines Telekommunikationsunternehmens.\nSchreibe eine präzise Management Summary (deutsch) für den Wochenvergleich '+prevKW+' → '+lastKW+'.\n\nGESAMT:\n- Volumen: '+fmtK(tIP)+' → '+fmtK(tIC)+' ('+(tIC>=tIP?'+':'')+fmtK(tIC-tIP)+')\n- CR: '+crP+'% → '+crC+'% ('+(crC-crP>=0?'+':'')+((crC-crP).toFixed(1))+' PP)\n\nVOLUMEN-SHIFTS:\n'+bv.map(r=>'- '+r.i+': '+(r.inv_delta>=0?'+':'')+fmtK(r.inv_delta)+' ('+r.inv_delta_pct.toFixed(1)+'%)').join('\n')+'\n\nCR-SHIFTS:\n'+bc.map(r=>'- '+r.i+': CR '+r.cr_prev.toFixed(1)+'% → '+r.cr_cur.toFixed(1)+'% ('+(r.cr_delta>=0?'+':'')+r.cr_delta.toFixed(1)+' PP)').join('\n')+'\n\nKRITISCH (CR<30%, >100 Anfragen):\n'+(crit.length?crit.map(r=>'- '+r.i+': CR '+r.cr_cur.toFixed(1)+'%').join('\n'):'Keine')+'\n\nFormat:\n1. Gesamtbefund (2-3 Sätze)\n2. ✅ Positive Entwicklungen (2-4 Punkte, konkret)\n3. ⚠️ Handlungsbedarf (2-4 Punkte, konkret)\n4. Empfehlung (1-2 Sätze)\nMax. 300 Wörter.';
+  var tCC=wd.reduce((s,r)=>s+r.con_cur,0),tCP=wd.reduce((s,r)=>s+r.con_prev,0);
+  var dCC=tCC-tCP, dCCpct=tCP>0?((dCC/tCP)*100).toFixed(1):'—';
+  var topConGain=wd.filter(r=>r.inv_cur>=50).slice().sort((a,b)=>((b.con_cur||0)-(b.con_prev||0))-((a.con_cur||0)-(a.con_prev||0))).slice(0,5);
+  var topConLoss=wd.filter(r=>r.inv_cur>=50).slice().sort((a,b)=>((a.con_cur||0)-(a.con_prev||0))-((b.con_cur||0)-(b.con_prev||0))).slice(0,5);
+  var prompt='Du bist Analyst für einen Kundendienst-Chatbot eines Telekommunikationsunternehmens.\nSchreibe eine präzise Management Summary (deutsch) für den Wochenvergleich '+prevKW+' → '+lastKW+'.\n\nDas CONTAINED-VOLUMEN (absolut containte Anfragen) ist die wichtigste Steuerungsgröße. Es zeigt direkt wie viele Kundenkontakte der Bot eigenständig gelöst hat.\n\nGESAMT:\n- Involved: '+fmtK(tIP)+' → '+fmtK(tIC)+' ('+(tIC>=tIP?'+':'')+fmtK(tIC-tIP)+')\n- Contained: '+fmtK(tCP)+' → '+fmtK(tCC)+' ('+(dCC>=0?'+':'')+fmtK(dCC)+' / '+dCCpct+'%) ← KERNMETRIK\n- CR: '+crP+'% → '+crC+'% ('+(crC-crP>=0?'+':'')+((crC-crP).toFixed(1))+' PP)\n\nCONTAINED-VOLUMEN GEWINNER (meiste zusätzliche containte Anfragen):\n'+topConGain.map(r=>'- '+r.i+': Contained '+fmtK(r.con_prev||0)+' → '+fmtK(r.con_cur||0)+' (+'+ fmtK((r.con_cur||0)-(r.con_prev||0))+')').join('\n')+'\n\nCONTAINED-VOLUMEN VERLIERER (stärkster Rückgang containter Anfragen):\n'+topConLoss.map(r=>'- '+r.i+': Contained '+fmtK(r.con_prev||0)+' → '+fmtK(r.con_cur||0)+' ('+fmtK((r.con_cur||0)-(r.con_prev||0))+')').join('\n')+'\n\nVOLUMEN-SHIFTS (Involved):\n'+bv.map(r=>'- '+r.i+': '+(r.inv_delta>=0?'+':'')+fmtK(r.inv_delta)+' ('+r.inv_delta_pct.toFixed(1)+'%)').join('\n')+'\n\nCR-SHIFTS:\n'+bc.map(r=>'- '+r.i+': CR '+r.cr_prev.toFixed(1)+'% → '+r.cr_cur.toFixed(1)+'% ('+(r.cr_delta>=0?'+':'')+r.cr_delta.toFixed(1)+' PP)').join('\n')+'\n\nKRITISCH (CR<30%, >100 Anfragen):\n'+(crit.length?crit.map(r=>'- '+r.i+': CR '+r.cr_cur.toFixed(1)+'%').join('\n'):'Keine')+'\n\nFormat:\n1. Gesamtbefund mit Fokus auf Contained-Volumen Entwicklung (2-3 Sätze)\n2. ✅ Positive Entwicklungen — Contained-Volumen Gewinner und CR-Verbesserungen (2-4 Punkte)\n3. ⚠️ Handlungsbedarf — Contained-Volumen Verluste und CR-Einbrüche (2-4 Punkte)\n4. Empfehlung mit konkretem Bezug auf Contained-Volumen (1-2 Sätze)\nMax. 320 Wörter. Nenne konkrete Zahlen.';
   try{
     var resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':_apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1000,stream:false,messages:[{role:'user',content:prompt}]})});
     clearInterval(dt);document.getElementById('wowSummaryLoading').style.display='none';document.getElementById('wowSummaryContent').style.display='block';
