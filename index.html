@@ -208,7 +208,8 @@ tr[onclick]{cursor:pointer}
 #apiKeySection input{width:200px;font-family:var(--mono);font-size:11px}
 
 /* KI ANALYST — floating chat */
-#kiFab{position:fixed;bottom:22px;right:22px;width:52px;height:52px;border-radius:50%;background:var(--accent);color:#fff;border:none;font-size:22px;cursor:pointer;z-index:900;box-shadow:0 4px 18px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;transition:transform .2s ease,box-shadow .2s ease}
+#kiFab{position:fixed;bottom:22px;right:22px;width:52px;height:52px;border-radius:50%;background:var(--accent);color:#fff;border:none;cursor:pointer;z-index:900;box-shadow:0 4px 18px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;transition:transform .2s ease,box-shadow .2s ease}
+#kiFab svg{display:block}
 #kiFab:hover{transform:scale(1.07);box-shadow:0 6px 22px rgba(0,0,0,.45)}
 #kiPanel{position:fixed;bottom:86px;right:22px;width:380px;max-width:calc(100vw - 32px);height:min(600px,calc(100vh - 120px));background:var(--card);border:1px solid var(--borderhi);border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.4);z-index:899;display:none;flex-direction:column;overflow:hidden;opacity:0;transform:translateY(16px) scale(.97);transition:opacity .18s ease,transform .18s ease}
 #kiPanel.open{display:flex;opacity:1;transform:translateY(0) scale(1)}
@@ -558,7 +559,14 @@ body.drag-active::after{content:'CSV hier ablegen';position:fixed;top:0;left:0;r
 
 <!-- KI ANALYST — sticky floating chat -->
 <button id="kiFab" onclick="toggleKiChat()" aria-label="KI Analyst öffnen">
-  <span id="kiFabIconOpen">💬</span><span id="kiFabIconClose" style="display:none">✕</span>
+  <svg id="kiFabIconOpen" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M12 2.5C12.3 6.4 13.2 9 15 10.8C16.8 12.6 19.4 13.5 23 13.8C19.4 14.1 16.8 15 15 16.8C13.2 18.6 12.3 21.2 12 25.1C11.7 21.2 10.8 18.6 9 16.8C7.2 15 4.6 14.1 1 13.8C4.6 13.5 7.2 12.6 9 10.8C10.8 9 11.7 6.4 12 2.5Z" fill="currentColor" transform="scale(0.88) translate(1.3,-1.3)"/>
+    <circle cx="19" cy="5" r="1.6" fill="currentColor"/>
+    <circle cx="5" cy="19" r="1.3" fill="currentColor"/>
+  </svg>
+  <svg id="kiFabIconClose" style="display:none" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M5 5L15 15M15 5L5 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  </svg>
 </button>
 <div id="kiPanel">
   <div id="kiPanelHead">
