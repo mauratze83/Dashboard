@@ -1272,6 +1272,12 @@ var VF_CONTEXT = 'HINTERGRUNDWISSEN — VODAFONE DEUTSCHLAND (allgemein, kann ve
   '- Häufig diskutierte Themen in Medien/Forum: Netzausbau (4G/5G), Störungen/Netzprobleme, Vertragskonditionen und Preiserhöhungen, Kündigungsfristen, Kundenservice-Erfahrungen, Rechnungsprobleme.\n'+
   '- Dies ist allgemeines Hintergrundwissen, KEINE Live-Daten. Für aktuelle Nachrichten, Preise, Störungsmeldungen oder Forums-Threads muss die Web-Suche verwendet werden — nicht aus dem Gedächtnis beantworten.';
 
+// Domain-Whitelist fürs Web-Search-Tool. ACHTUNG: einige Seiten blockieren den Web-Search-User-Agent
+// von Anthropic (robots.txt o.ä.) — die API lehnt dann die GESAMTE Anfrage mit 400 ab, nicht nur die
+// eine Domain ("chip.de" tat das am 2026-10-09). sendKiChat() hat deshalb zusätzlich einen automatischen
+// Retry ohne Domain-Filter, falls doch wieder eine Domain unzugänglich wird.
+var KI_SEARCH_DOMAINS=['vodafone.de','forum.vodafone.de','vodafone-forum.de','heise.de','golem.de','telekom.de','teltarif.de','computerbase.de'];
+
 function wantsWebSearch(q){
   // Heuristik: Fragen zu Vodafone/News/Forum/aktuellen Themen lösen die Web-Suche aus.
   var kws=['vodafone','forum','news','aktuell','störung','preis','tarif','kündig','presse','artikel','markt','wettbewerb','telekom','o2','1&1','branche','medien','schlagzeile'];
@@ -1319,13 +1325,24 @@ async function sendKiChat(){
   var body={model:'claude-sonnet-5-5',max_tokens:1100,stream:false,system:sys,messages:_kiHistory.slice(-10)};
   if(useSearch){
     body.tools=[{type:'web_search_20250305',name:'web_search',max_uses:3,allowed_callers:['direct'],
-      allowed_domains:['vodafone.de','forum.vodafone.de','vodafone-forum.de','heise.de','golem.de','telekom.de','teltarif.de','computerbase.de','chip.de']}];
+      allowed_domains:KI_SEARCH_DOMAINS}];
   }
   try{
     var resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':_apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
       body:JSON.stringify(body)});
+    var eb='';
+    if(!resp.ok)eb=await resp.text();
+    // Einzelne Domains können für den Web-Search-User-Agent gesperrt sein (robots.txt o.ä.) —
+    // die API lehnt dann die GESAMTE Anfrage mit 400 ab. Automatischer Retry ohne Domain-Filter,
+    // damit eine einzelne blockierte Domain nicht den ganzen Chat lahmlegt.
+    if(!resp.ok&&resp.status===400&&useSearch&&/domains are not accessible/i.test(eb)){
+      delete body.tools[0].allowed_domains;
+      resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':_apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+        body:JSON.stringify(body)});
+      if(!resp.ok)eb=await resp.text();else eb='';
+    }
     clearInterval(dt);
-    if(!resp.ok){var eb=await resp.text();if(resp.status===401){try{localStorage.removeItem('chatbot_dash_apikey');}catch(e){}_apiKey='';syncKeyUiKi();document.getElementById('apiKeySection').style.display='flex';}throw new Error('API '+resp.status+(eb?': '+eb.slice(0,200):''));}
+    if(!resp.ok){if(resp.status===401){try{localStorage.removeItem('chatbot_dash_apikey');}catch(e){}_apiKey='';syncKeyUiKi();document.getElementById('apiKeySection').style.display='flex';}throw new Error('API '+resp.status+(eb?': '+eb.slice(0,200):''));}
     var dat=await resp.json();
     var blocks=dat.content||[];
     var txt=blocks.filter(b=>b.type==='text').map(b=>b.text).join('');
