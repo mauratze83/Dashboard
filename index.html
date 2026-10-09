@@ -592,6 +592,7 @@ body.drag-active::after{content:'CSV hier ablegen';position:fixed;top:0;left:0;r
     <button class="btn" onclick="askKiPreset('Wie hat sich die Gesamt-CR über die letzten 8 Wochen entwickelt und was sind mögliche Gründe?')">CR-Trend</button>
     <button class="btn" onclick="askKiPreset('Vergleiche die Performance der Kanäle Webchat, Appchat und WhatsApp. Wo gibt es Optimierungspotenzial?')">Kanal-Vergleich</button>
     <button class="btn" onclick="askKiPreset('Welche Intents haben das größte Contained-Volumen und tragen am meisten zur Entlastung bei?')">Top Contained-Treiber</button>
+    <button class="btn" onclick="askKiPreset('Was gibt es aktuell an Vodafone-News (z.B. Störungen, Tarifänderungen, Produktneuheiten)? Welchen möglichen Impact könnte das auf den Kundendienst-Chatbot und seine Intents/Volumen haben?')">Vodafone-News &amp; Impact auf Chat</button>
   </div>
   <div id="kiInputBar">
     <textarea id="kiChatInput" placeholder="Frage zu den Daten stellen…" rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendKiChat();}" oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px';"></textarea>
@@ -1322,33 +1323,54 @@ async function sendKiChat(){
     'Wenn eine Frage nicht aus den Daten oder deinem Hintergrundwissen beantwortbar ist, sag das klar statt zu spekulieren. '+
     (useSearch?'Für diese Frage darfst du die Web-Suche nutzen, z.B. für aktuelle Vodafone-News, Störungsmeldungen oder Themen aus der Vodafone Community (forum.vodafone.de). Nenne bei Web-Ergebnissen kurz die Quelle.\n\n':'\n\n')+
     buildKiDataContext()+'\n\n'+VF_CONTEXT;
-  var body={model:'claude-sonnet-5-5',max_tokens:1100,stream:false,system:sys,messages:_kiHistory.slice(-10)};
+  // max_tokens großzügig bemessen: bei Web-Suche zählen die Suchergebnisse selbst mit gegen das
+  // Budget, bevor Claude überhaupt den finalen Antworttext schreibt — zu knapp gesetzt, bricht die
+  // Antwort mittendrin ab (stop_reason "max_tokens") und es kommt nur noch das Suche-Badge ohne Text an.
+  var body={model:'claude-sonnet-5-5',max_tokens:useSearch?4096:1100,stream:false,system:sys,messages:_kiHistory.slice(-10)};
   if(useSearch){
     body.tools=[{type:'web_search_20250305',name:'web_search',max_uses:3,allowed_callers:['direct'],
       allowed_domains:KI_SEARCH_DOMAINS}];
   }
+  async function callApi(b){
+    var r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':_apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify(b)});
+    var errText='';
+    if(!r.ok)errText=await r.text();
+    return{r,errText};
+  }
   try{
-    var resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':_apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify(body)});
-    var eb='';
-    if(!resp.ok)eb=await resp.text();
+    var {r:resp,errText:eb}=await callApi(body);
     // Einzelne Domains können für den Web-Search-User-Agent gesperrt sein (robots.txt o.ä.) —
     // die API lehnt dann die GESAMTE Anfrage mit 400 ab. Automatischer Retry ohne Domain-Filter,
     // damit eine einzelne blockierte Domain nicht den ganzen Chat lahmlegt.
     if(!resp.ok&&resp.status===400&&useSearch&&/domains are not accessible/i.test(eb)){
       delete body.tools[0].allowed_domains;
-      resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':_apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-        body:JSON.stringify(body)});
-      if(!resp.ok)eb=await resp.text();else eb='';
+      ({r:resp,errText:eb}=await callApi(body));
     }
-    clearInterval(dt);
-    if(!resp.ok){if(resp.status===401){try{localStorage.removeItem('chatbot_dash_apikey');}catch(e){}_apiKey='';syncKeyUiKi();document.getElementById('apiKeySection').style.display='flex';}throw new Error('API '+resp.status+(eb?': '+eb.slice(0,200):''));}
+    if(!resp.ok){clearInterval(dt);if(resp.status===401){try{localStorage.removeItem('chatbot_dash_apikey');}catch(e){}_apiKey='';syncKeyUiKi();document.getElementById('apiKeySection').style.display='flex';}throw new Error('API '+resp.status+(eb?': '+eb.slice(0,200):''));}
     var dat=await resp.json();
-    var blocks=dat.content||[];
+    var allBlocks=(dat.content||[]).slice();
+    // "pause_turn": bei langen Such-Vorgängen pausiert die API den Turn mitten in der Antwort.
+    // Der pausierte Assistant-Block muss unverändert zurückgesendet werden, um fortzusetzen —
+    // sonst bleibt die Antwort leer/abgeschnitten. Max. 3 Fortsetzungsrunden als Sicherheitsnetz.
+    var rounds=0;
+    while(dat.stop_reason==='pause_turn'&&rounds<3){
+      rounds++;
+      var contMsgs=_kiHistory.slice(-10).concat([{role:'assistant',content:dat.content}]);
+      var contBody=Object.assign({},body,{messages:contMsgs});
+      var cont=await callApi(contBody);
+      if(!cont.r.ok)break;
+      dat=await cont.r.json();
+      allBlocks=allBlocks.concat(dat.content||[]);
+    }
+    var blocks=allBlocks;
     var txt=blocks.filter(b=>b.type==='text').map(b=>b.text).join('');
     var searched=blocks.some(b=>b.type==='server_tool_use'&&b.name==='web_search');
     var cites=[];
     blocks.forEach(b=>{if(b.type==='text'&&b.citations)b.citations.forEach(c=>{if(c.url&&!cites.some(x=>x.url===c.url))cites.push({url:c.url,title:c.title||c.url});});});
+    clearInterval(dt);
+    // Fallback: selbst nach der pause_turn-Behandlung kann der Text leer bleiben (z.B. max_tokens
+    // trotzdem erreicht) — dann klar sagen statt eine leere Bubble mit nur dem Suche-Badge zu zeigen.
+    if(!txt.trim())txt=searched?'Die Web-Suche wurde durchgeführt, aber die Antwort wurde abgeschnitten (Token-Limit). Bitte die Frage enger fassen oder erneut stellen.':'Keine Textantwort erhalten.';
     var html2=formatSum(txt);
     if(searched)html2+='<div style="margin-top:8px;font-size:10.5px;color:var(--tmid)">🔎 mit Web-Suche</div>';
     if(cites.length)html2+='<div style="margin-top:4px;display:flex;flex-direction:column;gap:2px">'+cites.slice(0,5).map(c=>'<a href="'+c.url+'" target="_blank" rel="noopener" style="font-size:10.5px;color:var(--accent);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">↗ '+(c.title||c.url).replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</a>').join('')+'</div>';
