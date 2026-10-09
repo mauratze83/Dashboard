@@ -1220,23 +1220,30 @@ function buildKiDataContext(){
   var w=DATA.weeks,wt=DATA.weekly_totals;
   var totInv=wt.reduce((s,d)=>s+d.inv,0),totCon=wt.reduce((s,d)=>s+d.con,0),totCs=wt.reduce((s,d)=>s+(d.cs||0),0);
   var totCr=totInv?(totCon/totInv*100).toFixed(1):0;
-  var last8=wt.slice(-8).map(d=>'KW'+d.w.split('-')[1]+': Involved '+d.inv+', Contained '+d.con+', CR '+d.cr+'%').join('\n');
-  var it=DATA.intent_totals.slice().sort((a,b)=>b.inv-a.inv).slice(0,20);
+  var allW=wt.map(d=>'KW'+d.w.split('-')[1]+': Involved '+d.inv+', Contained '+d.con+', CR '+d.cr+'%').join('\n');
+  // ALLE Intents (nicht nur Top-N) — sonst kann die KI zu selten gefragten Intents nicht antworten
+  var it=DATA.intent_totals.slice().sort((a,b)=>b.inv-a.inv);
   var itTxt=it.map(d=>d.i+': Involved '+d.inv+', Contained '+d.con+', CR '+d.cr+'%, CS '+Math.round(d.cs||0)+'€').join('\n');
-  var worst=DATA.intent_totals.filter(d=>d.inv>=200).slice().sort((a,b)=>a.cr-b.cr).slice(0,10).map(d=>d.i+': CR '+d.cr+'% ('+d.inv+' Anfragen)').join('\n');
   var ch=DATA.ch_totals||{};
   var chTxt=MAIN_CH.map(c=>c+': Involved '+(ch[c]||{}).inv+', Contained '+(ch[c]||{}).con+', CR '+(ch[c]||{}).cr+'%').join('\n');
   var lastW=wt[wt.length-1],prevW=wt[wt.length-2];
+  // Pro-Intent Wochenverlauf (CR je Woche) — ermöglicht Trendfragen zu JEDEM Intent
+  var iwcr=DATA.intent_weekly_cr||{};
+  var iwTxt=Object.keys(iwcr).map(name=>{
+    var arr=iwcr[name];
+    var pairs=w.map((wk,idx)=>arr[idx]!==null&&arr[idx]!==undefined?('KW'+wk.split('-')[1]+':'+arr[idx]) : null).filter(Boolean);
+    return name+' CR je Woche → '+pairs.join(', ');
+  }).join('\n');
   return 'DATENKONTEXT — Kundendienst-Chatbot eines Telekommunikationsunternehmens\n\n'+
     'ZEITRAUM: '+w[0]+' bis '+w[w.length-1]+' ('+w.length+' Wochen)\n\n'+
     'GESAMT (über gesamten Zeitraum):\n- Involved: '+totInv+'\n- Contained: '+totCon+'\n- CR: '+totCr+'%\n- €CS: '+Math.round(totCs)+'\n\n'+
     'LETZTE WOCHE ('+(lastW?lastW.w:'-')+'): Involved '+(lastW?lastW.inv:'-')+', Contained '+(lastW?lastW.con:'-')+', CR '+(lastW?lastW.cr:'-')+'%\n'+
     'VORWOCHE ('+(prevW?prevW.w:'-')+'): Involved '+(prevW?prevW.inv:'-')+', Contained '+(prevW?prevW.con:'-')+', CR '+(prevW?prevW.cr:'-')+'%\n\n'+
-    'WOCHENVERLAUF (letzte 8 Wochen):\n'+last8+'\n\n'+
-    'TOP-20 INTENTS NACH VOLUMEN (gesamter Zeitraum, kumuliert):\n'+itTxt+'\n\n'+
-    'SCHWÄCHSTE INTENTS (CR, min. 200 Anfragen):\n'+worst+'\n\n'+
-    'KANÄLE (Webchat/Appchat/WhatsApp — Hauptkanäle; ABC/SMS sind in Gesamtzahlen enthalten, hier nicht separat ausgewiesen):\n'+chTxt+'\n\n'+
-    'Hinweis: CS = Cost Savings (€), CR = Containment Rate (Anteil eigenständig vom Bot gelöster Anfragen).';}
+    'WOCHENVERLAUF (ALLE '+w.length+' Wochen, Gesamtzahlen):\n'+allW+'\n\n'+
+    'ALLE INTENTS ('+it.length+' Stück, gesamter Zeitraum kumuliert, sortiert nach Involved):\n'+itTxt+'\n\n'+
+    'CR-VERLAUF JE INTENT UND WOCHE (nur echte Intents ohne Noise/Sonstiges; fehlende Wochen = keine Daten für diesen Intent in der Woche):\n'+iwTxt+'\n\n'+
+    'KANÄLE (Webchat/Appchat/WhatsApp — Hauptkanäle; ABC/SMS sind in den GESAMT- und WOCHENVERLAUF-Zahlen oben enthalten, aber hier separat NICHT ausgewiesen):\n'+chTxt+'\n\n'+
+    'Hinweis: CS = Cost Savings (€), CR = Containment Rate (Anteil eigenständig vom Bot gelöster Anfragen). Es gibt KEINE Aufschlüsselung pro Kanal UND Intent gleichzeitig in diesen Daten — bei einer solchen Frage ehrlich sagen, dass das nicht verfügbar ist, statt zu schätzen.';}
 function kiAppendMsg(role,html){
   var log=document.getElementById('kiChatLog');
   var div=document.createElement('div');
