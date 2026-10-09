@@ -1259,6 +1259,25 @@ function buildKiDataContext(){
     'CR-VERLAUF JE INTENT UND WOCHE (nur echte Intents ohne Noise/Sonstiges; fehlende Wochen = keine Daten für diesen Intent in der Woche):\n'+iwTxt+'\n\n'+
     'KANÄLE (Webchat/Appchat/WhatsApp — Hauptkanäle; ABC/SMS sind in den GESAMT- und WOCHENVERLAUF-Zahlen oben enthalten, aber hier separat NICHT ausgewiesen):\n'+chTxt+'\n\n'+
     'Hinweis: CS = Cost Savings (€), CR = Containment Rate (Anteil eigenständig vom Bot gelöster Anfragen). Es gibt KEINE Aufschlüsselung pro Kanal UND Intent gleichzeitig in diesen Daten — bei einer solchen Frage ehrlich sagen, dass das nicht verfügbar ist, statt zu schätzen.';}
+
+/* Statisches Hintergrundwissen zu Vodafone Deutschland — als Kontext, nicht als Faktenquelle für
+   aktuelle/zeitkritische Dinge (Preise, Tarife, Störungen, Rechtslage). Für Live-Infos nutzt die KI
+   das Web-Search-Tool (siehe sendKiChat). */
+var VF_CONTEXT = 'HINTERGRUNDWISSEN — VODAFONE DEUTSCHLAND (allgemein, kann veraltet sein; für aktuelle Infos die Web-Suche nutzen):\n'+
+  '- Vodafone Deutschland ist einer der großen Telekommunikationsanbieter in Deutschland (Mobilfunk, Festnetz, Internet, Kabel/TV), Teil der Vodafone Group (UK).\n'+
+  '- Zentrale in Düsseldorf. Nach der Übernahme von Unitymedia/Kabel Deutschland ist Vodafone auch größter Kabelnetzbetreiber in Deutschland.\n'+
+  '- Produktbereiche u.a.: Mobilfunk-Tarife (GigaMobil u.ä.), Festnetz/Internet (GigaZuhause, Kabel-Internet), CallYa (Prepaid), GigaKombi (Bundling-Rabatte), Business/Enterprise-Lösungen.\n'+
+  '- Kundenservice-Kanäle: Telefon-Hotline, die "Vodafone Community" / Hilfe-Forum unter forum.vodafone.de (Nutzer helfen Nutzern, offizielle Moderatoren), Chat/App (MeinVodafone), Shops.\n'+
+  '- forum.vodafone.de ("Vodafone Community") ist ein öffentliches Support-Forum mit Themenbereichen zu Mobilfunk, Internet/Festnetz, TV, Rechnung & Vertrag — oft erste Anlaufstelle für bekannte/wiederkehrende Probleme und Störungen.\n'+
+  '- Häufig diskutierte Themen in Medien/Forum: Netzausbau (4G/5G), Störungen/Netzprobleme, Vertragskonditionen und Preiserhöhungen, Kündigungsfristen, Kundenservice-Erfahrungen, Rechnungsprobleme.\n'+
+  '- Dies ist allgemeines Hintergrundwissen, KEINE Live-Daten. Für aktuelle Nachrichten, Preise, Störungsmeldungen oder Forums-Threads muss die Web-Suche verwendet werden — nicht aus dem Gedächtnis beantworten.';
+
+function wantsWebSearch(q){
+  // Heuristik: Fragen zu Vodafone/News/Forum/aktuellen Themen lösen die Web-Suche aus.
+  var kws=['vodafone','forum','news','aktuell','störung','preis','tarif','kündig','presse','artikel','markt','wettbewerb','telekom','o2','1&1','branche','medien','schlagzeile'];
+  var ql=q.toLowerCase();
+  return kws.some(k=>ql.includes(k));
+}
 function kiAppendMsg(role,html){
   var log=document.getElementById('kiChatLog');
   var div=document.createElement('div');
@@ -1290,18 +1309,34 @@ async function sendKiChat(){
   var loadBubble=kiAppendMsg('assistant','<span id="kiLoadDots" style="letter-spacing:3px">···</span>');
   var dotI=0,dt=setInterval(()=>{var el=document.getElementById('kiLoadDots');if(el)el.textContent=['···','·· ','·  ','   '][dotI++%4];},300);
   _kiHistory.push({role:'user',content:q});
-  var sys='Du bist ein Datenanalyst für das Team eines Kundendienst-Chatbots bei einem Telekommunikationsunternehmen. '+
+  var useSearch=wantsWebSearch(q);
+  var sys='Du bist ein Datenanalyst für das Team eines Kundendienst-Chatbots bei Vodafone Deutschland. '+
     'Du beantwortest Fragen zum unten stehenden Datenmaterial präzise, auf Deutsch, mit konkreten Zahlen aus den Daten. '+
     'Antworte knapp (max. 150 Wörter wenn möglich), nutze Aufzählungen wenn sinnvoll, und verwende **fett** für wichtige Zahlen/Begriffe. '+
-    'Wenn eine Frage nicht aus den Daten beantwortbar ist, sag das klar statt zu spekulieren.\n\n'+buildKiDataContext();
+    'Wenn eine Frage nicht aus den Daten oder deinem Hintergrundwissen beantwortbar ist, sag das klar statt zu spekulieren. '+
+    (useSearch?'Für diese Frage darfst du die Web-Suche nutzen, z.B. für aktuelle Vodafone-News, Störungsmeldungen oder Themen aus der Vodafone Community (forum.vodafone.de). Nenne bei Web-Ergebnissen kurz die Quelle.\n\n':'\n\n')+
+    buildKiDataContext()+'\n\n'+VF_CONTEXT;
+  var body={model:'claude-sonnet-4-6',max_tokens:1100,stream:false,system:sys,messages:_kiHistory.slice(-10)};
+  if(useSearch){
+    body.tools=[{type:'web_search_20250305',name:'web_search',max_uses:3,
+      allowed_domains:['vodafone.de','forum.vodafone.de','vodafone-forum.de','heise.de','golem.de','telekom.de','teltarif.de','computerbase.de','chip.de']}];
+  }
   try{
     var resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':_apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:900,stream:false,system:sys,messages:_kiHistory.slice(-10)})});
+      body:JSON.stringify(body)});
     clearInterval(dt);
-    if(!resp.ok){var eb=await resp.text();if(resp.status===401){try{localStorage.removeItem('chatbot_dash_apikey');}catch(e){}_apiKey='';syncKeyUiKi();document.getElementById('apiKeySection').style.display='flex';}throw new Error('API '+resp.status);}
-    var dat=await resp.json();var txt=(dat.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('');
-    loadBubble.innerHTML=formatSum(txt);
-    _kiHistory.push({role:'assistant',content:txt});
+    if(!resp.ok){var eb=await resp.text();if(resp.status===401){try{localStorage.removeItem('chatbot_dash_apikey');}catch(e){}_apiKey='';syncKeyUiKi();document.getElementById('apiKeySection').style.display='flex';}throw new Error('API '+resp.status+(eb?': '+eb.slice(0,200):''));}
+    var dat=await resp.json();
+    var blocks=dat.content||[];
+    var txt=blocks.filter(b=>b.type==='text').map(b=>b.text).join('');
+    var searched=blocks.some(b=>b.type==='server_tool_use'&&b.name==='web_search');
+    var cites=[];
+    blocks.forEach(b=>{if(b.type==='text'&&b.citations)b.citations.forEach(c=>{if(c.url&&!cites.some(x=>x.url===c.url))cites.push({url:c.url,title:c.title||c.url});});});
+    var html2=formatSum(txt);
+    if(searched)html2+='<div style="margin-top:8px;font-size:10.5px;color:var(--tmid)">🔎 mit Web-Suche</div>';
+    if(cites.length)html2+='<div style="margin-top:4px;display:flex;flex-direction:column;gap:2px">'+cites.slice(0,5).map(c=>'<a href="'+c.url+'" target="_blank" rel="noopener" style="font-size:10.5px;color:var(--accent);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">↗ '+(c.title||c.url).replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</a>').join('')+'</div>';
+    loadBubble.innerHTML=html2;
+    _kiHistory.push({role:'assistant',content:blocks});
   }catch(e){
     clearInterval(dt);
     loadBubble.innerHTML='<span style="color:var(--red)">Fehler: '+e.message+'</span>';
