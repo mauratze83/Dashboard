@@ -590,7 +590,7 @@ body.drag-active::after{content:'CSV hier ablegen';position:fixed;top:0;left:0;r
     <div class="card-head" style="padding:16px 16px 0"><div class="card-title">Erkannte Anomalie-Tage</div><div class="card-sub" id="anomTableSub">Neueste zuerst</div></div>
     <div class="table-wrap">
       <table><thead><tr>
-        <th>Datum</th><th>Involved</th><th>Contained</th><th>CR</th><th>Auffällig</th><th>Abweichung</th><th>Mögliche Treiber (Intents)</th>
+        <th>Datum</th><th>Involved</th><th>Contained</th><th>CR</th><th>Was ist auffällig?</th><th>Wie stark (Ist vs. üblich)</th><th>Mögliche Erklärung</th>
       </tr></thead><tbody id="anomTbody"></tbody></table>
     </div>
   </div>
@@ -1621,19 +1621,29 @@ function renderAnomalien(){
   if(tsub)tsub.textContent=anoms.length+' Anomalie(n) gefunden · neueste zuerst';
   document.getElementById('anomTbody').innerHTML=sorted.map(function(a){
     var badges=a.flags.map(function(f){
-      var lbl2=(f.metric==='inv'?'Involved':'CR')+' '+(f.z>=0?'▲':'▼')+' z='+f.z.toFixed(1);
-      return '<span class="pill '+(f.z>=0?'pill-up':'pill-down')+'" style="margin-right:4px">'+lbl2+'</span>';
+      var metricName=f.metric==='inv'?'Involved':'CR';
+      var richtung=f.z>=0?'höher als üblich':'niedriger als üblich';
+      var staerke=Math.abs(f.z)>=3?'stark':Math.abs(f.z)>=2.5?'deutlich':'auffällig';
+      var lbl2=metricName+' '+staerke+' '+richtung;
+      return '<span class="pill '+(f.z>=0?'pill-up':'pill-down')+'" style="margin-right:4px" title="Statistische Stärke der Abweichung: z='+f.z.toFixed(1)+' (ab 2.0 gilt ein Tag als auffällig)">'+lbl2+'</span>';
     }).join('');
     var devTxt=a.flags.map(function(f){
-      var unit=f.metric==='cr'?' PP':'';
       var devVal=f.val-f.baseline_mean;
-      return (f.metric==='inv'?'Vol':'CR')+': '+(devVal>=0?'+':'')+Math.round(devVal*10)/10+unit+' ggü. Ø'+Math.round(f.baseline_mean*10)/10;
+      if(f.metric==='cr'){
+        var pct=Math.round(devVal*10)/10;
+        return 'CR: '+f.val.toFixed(1)+'% statt üblich '+Math.round(f.baseline_mean*10)/10+'% ('+(pct>=0?'+':'')+pct+' Prozentpunkte)';
+      } else {
+        var relPct=f.baseline_mean?Math.round(devVal/f.baseline_mean*1000)/10:0;
+        return 'Involved: '+fmtK(f.val)+' statt üblich '+fmtK(Math.round(f.baseline_mean))+' ('+(relPct>=0?'+':'')+relPct+'%)';
+      }
     }).join(' · ');
     var drivers=a.top_intents&&a.top_intents.length?a.top_intents.map(function(ti){
       if(ti.calendar){
-        return '<span class="tag" style="margin-right:4px;background:var(--bgsoft,rgba(139,108,247,.15));border:1px solid '+AC2+';color:'+AC2+'" title="Kalender-Kontext: moeglicher Treiber durch Feiertag/Schulferien">📅 '+ti.i+'</span>';
+        return '<span class="tag" style="margin-right:4px;background:var(--bgsoft,rgba(139,108,247,.15));border:1px solid '+AC2+';color:'+AC2+'" title="Möglicher Erklärungsfaktor: Feiertag oder Schulferien, die erfahrungsgemäß das Chat-Volumen senken">📅 '+ti.i+'</span>';
       }
-      return '<span class="tag" style="cursor:pointer;margin-right:4px" title="'+ti.i+': CR '+ti.cr+'% (Ø '+ti.baseline_cr+'%)" onclick="openDetail(\''+ti.i+'\')">'+ti.i.replace(/_/g,' ').slice(0,22)+' ('+(ti.dev>=0?'+':'')+ti.dev+'PP)</span>';
+      var intentName=ti.i.replace(/_/g,' ');
+      var richtungWort=ti.dev>=0?'höhere':'niedrigere';
+      return '<span class="tag" style="cursor:pointer;margin-right:4px" title="'+intentName+': CR an diesem Tag '+ti.cr+'%, sonst üblicherweise '+ti.baseline_cr+'% — also '+Math.abs(ti.dev)+' Prozentpunkte '+richtungWort+' als gewohnt" onclick="openDetail(\''+ti.i+'\')">'+intentName.slice(0,22)+' ('+(ti.dev>=0?'+':'')+ti.dev+' PP CR)</span>';
     }).join('') : '<span style="color:var(--tlo);font-size:11px">—</span>';
     var calBadge='';
     if(a.holiday)calBadge='<span class="pill" style="margin-left:4px;background:rgba(139,108,247,.15);color:'+AC2+'" title="Bundesweiter Feiertag">📅 '+a.holiday+'</span>';
