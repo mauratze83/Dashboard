@@ -142,6 +142,8 @@ tr[onclick]{cursor:pointer}
 
 /* PILLS */
 .pill{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:11px;font-family:var(--mono);font-weight:500;white-space:nowrap}
+.anom-table td,.anom-table th{white-space:normal;vertical-align:top}
+.anom-table .pill,.anom-table .tag{white-space:normal;display:inline-block;margin-bottom:3px;line-height:1.4}
 .pill-up{background:rgba(48,216,150,.12);color:var(--green);border:1px solid rgba(48,216,150,.25)}
 .pill-down{background:rgba(240,96,96,.12);color:var(--red);border:1px solid rgba(240,96,96,.25)}
 .pill-flat{background:rgba(255,255,255,.05);color:var(--tmid);border:1px solid var(--border)}
@@ -589,8 +591,8 @@ body.drag-active::after{content:'CSV hier ablegen';position:fixed;top:0;left:0;r
   <div class="card" style="margin-top:16px;padding:0;overflow:hidden">
     <div class="card-head" style="padding:16px 16px 0"><div class="card-title">Erkannte Anomalie-Tage</div><div class="card-sub" id="anomTableSub">Neueste zuerst</div></div>
     <div class="table-wrap">
-      <table><thead><tr>
-        <th>Datum</th><th>Involved</th><th>Contained</th><th>CR</th><th>Was ist auffällig?</th><th>Wie stark (Ist vs. üblich)</th><th>Mögliche Erklärung</th>
+      <table class="anom-table"><thead><tr>
+        <th>Datum</th><th>Involved</th><th>Contained</th><th>CR</th><th style="min-width:160px">Was ist auffällig?</th><th style="min-width:220px">Wie stark (Ist vs. üblich)</th><th style="min-width:260px">Mögliche Erklärung</th>
       </tr></thead><tbody id="anomTbody"></tbody></table>
     </div>
   </div>
