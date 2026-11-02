@@ -377,6 +377,20 @@ check("sendKiChat() handles the documented pause_turn stop_reason by continuing 
 check("sendKiChat() shows an explicit fallback message instead of a silently empty reply",
       re.search(r"if\(!txt\.trim\(\)\)txt=", html) is not None)
 
+# Regression (2026-11-02): the WoW management summary stopped mid-sentence. genSummary() used
+# max_tokens:1000 for a "max. 320 Wörter" German summary full of numbers and long intent names
+# (~700-900 tokens), and never checked stop_reason, so truncated text was shown silently.
+gen_m = re.search(r'async function genSummary\(\)(.*?)\n\s*btn\.disabled=false', html, re.S)
+check('genSummary() found', gen_m is not None)
+if gen_m:
+    mt = re.search(r'max_tokens\s*:\s*(\d+)', gen_m.group(1))
+    check('genSummary() max_tokens >= 2000 (1000 truncated the summary mid-sentence)',
+          mt is not None and int(mt.group(1)) >= 2000, f"max_tokens={mt.group(1) if mt else None}")
+    check("genSummary() detects stop_reason==='max_tokens' and tells the user",
+          "stop_reason==='max_tokens'" in gen_m.group(1))
+check('typewrite() cancels a previous run on the same element (no interleaved text on regenerate)',
+      '_twRun' in html)
+
 # ---------------------------------------------------------------------------
 # 4. NAVIGATION / TAB WIRING — every nav-tab has a matching page and vice versa
 # ---------------------------------------------------------------------------
