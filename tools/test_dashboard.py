@@ -342,40 +342,11 @@ bad_models = [m for m in model_refs if m not in VALID_MODELS]
 check('every hardcoded model string is a currently valid Anthropic model id',
       len(bad_models) == 0, f"invalid/unknown model string(s): {set(bad_models)} — check against platform.claude.com/docs/en/models/overview")
 
-# web_search tool: allowed_callers should be set to avoid a documented 400 on some model/tool-version combos
-if 'web_search_20250305' in html:
-    ws_block_m = re.search(r"type:\s*'web_search_20250305'.{0,300}", html, re.S)
-    check("web_search tool definition sets allowed_callers (avoids a documented 400)",
-          ws_block_m is not None and 'allowed_callers' in ws_block_m.group(0))
-    check("web_search tool does not set both allowed_domains and blocked_domains (causes 400)",
-          not (ws_block_m and 'allowed_domains' in ws_block_m.group(0) and 'blocked_domains' in ws_block_m.group(0)))
-
 # error handling: API error responses should surface the real error body, not just the status code,
 # so future 400s are diagnosable from the chat UI itself instead of guesswork
 error_throws = re.findall(r"throw new Error\('API '\+resp\.status[^)]*\)", html)
 check("every 'API <status>' error throw also includes the response body text (for diagnosability)",
       len(error_throws) > 0 and all('eb' in e for e in error_throws), str(error_throws))
-
-# Regression: chip.de returned "domains are not accessible to our user agent" from the web_search
-# tool, which made the API reject the WHOLE request (not just that domain) with a 400.
-# Check only the actual domain-list array (KI_SEARCH_DOMAINS), not code comments mentioning it.
-domains_arr_m = re.search(r"KI_SEARCH_DOMAINS\s*=\s*\[([^\]]+)\]", html)
-check("KI_SEARCH_DOMAINS array exists", domains_arr_m is not None)
-if domains_arr_m:
-    check("chip.de is not in the web-search allowed-domains list (known inaccessible to the search user agent)",
-          'chip.de' not in domains_arr_m.group(1))
-check("sendKiChat() retries without allowed_domains when the API reports a domain as inaccessible",
-      re.search(r"domains are not accessible", html, re.I) is not None and 'delete body.tools[0].allowed_domains' in html)
-
-# Regression: web-search replies came back as an empty bubble (only the "🔎 mit Web-Suche" badge,
-# no text) — root cause was max_tokens too low for search responses, and no handling of the
-# documented pause_turn stop_reason, so the final text block was silently dropped.
-check("max_tokens is raised for web-search requests (search results themselves consume budget)",
-      re.search(r"max_tokens\s*:\s*useSearch\s*\?\s*4096", html) is not None)
-check("sendKiChat() handles the documented pause_turn stop_reason by continuing the turn",
-      "stop_reason==='pause_turn'" in html or "stop_reason === 'pause_turn'" in html)
-check("sendKiChat() shows an explicit fallback message instead of a silently empty reply",
-      re.search(r"if\(!txt\.trim\(\)\)txt=", html) is not None)
 
 # Regression (2026-11-02): the WoW management summary stopped mid-sentence. genSummary() used
 # max_tokens:1000 for a "max. 320 Wörter" German summary full of numbers and long intent names
@@ -386,6 +357,8 @@ if gen_m:
     mt = re.search(r'max_tokens\s*:\s*(\d+)', gen_m.group(1))
     check('genSummary() max_tokens >= 2000 (1000 truncated the summary mid-sentence)',
           mt is not None and int(mt.group(1)) >= 2000, f"max_tokens={mt.group(1) if mt else None}")
+    check('genSummary() uses claude-haiku-5-5 (cheaper; switched from Sonnet on 2026-11-02)',
+          "model:'claude-haiku-5-5'" in gen_m.group(1))
     check("genSummary() detects stop_reason==='max_tokens' and tells the user",
           "stop_reason==='max_tokens'" in gen_m.group(1))
 check('typewrite() cancels a previous run on the same element (no interleaved text on regenerate)',
@@ -409,15 +382,13 @@ if tab_arr_m:
           set(tab_arr) == set(nav_tab_ids), f"TAB[]={tab_arr} nav-tabs={nav_tab_ids}")
 
 # ---------------------------------------------------------------------------
-# 5. FLOATING KI-CHAT WIDGET — present exactly once, wired correctly
+# 5. KI-CHAT REMOVED (2026-11-02, auf Wunsch entfernt — zu hoher Token-Verbrauch)
 # ---------------------------------------------------------------------------
-check('kiFab button present exactly once', len(re.findall(r'id="kiFab"', html)) == 1)
-check('kiPanel present exactly once', len(re.findall(r'id="kiPanel"', html)) == 1)
-check('no leftover page-ki tab/page from earlier design', 'page-ki' not in html and "showPage('ki'" not in html)
-check('kiFab is outside any .page element (always visible)',
-      html.find('id="kiFab"') > html.rfind('</main>') if '</main>' in html else True)
-for fn in ['toggleKiChat', 'sendKiChat', 'askKiPreset', 'clearKiChat', 'syncKeyUiKi', 'saveKeyKi', 'buildKiDataContext']:
-    check(f'JS function {fn}() is defined', re.search(r'function\s+' + fn + r'\s*\(', html) is not None)
+for leftover in ['id="kiFab"', 'id="kiPanel"', 'sendKiChat', 'toggleKiChat', '_kiHistory', 'syncKeyUiKi',
+                 'KI_SEARCH_DOMAINS', 'VF_CONTEXT', 'web_search', 'page-ki']:
+    check(f'KI-Chat fully removed: no "{leftover}" left in the file', leftover not in html)
+check('API-key UI for the summary still present (apiKeySection / saveKey / clearKey)',
+      'id="apiKeySection"' in html and re.search(r'function\s+saveKey\s*\(', html) and re.search(r'function\s+clearKey\s*\(', html))
 
 # ---------------------------------------------------------------------------
 # 6. PASSWORD GATE still intact
