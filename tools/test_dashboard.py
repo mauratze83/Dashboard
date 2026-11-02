@@ -344,7 +344,7 @@ check('every hardcoded model string is a currently valid Anthropic model id',
 
 # error handling: API error responses should surface the real error body, not just the status code,
 # so future 400s are diagnosable from the chat UI itself instead of guesswork
-error_throws = re.findall(r"throw new Error\('API '\+resp\.status[^)]*\)", html)
+error_throws = re.findall(r"throw new Error\('API '\+\w+\.status[^)]*\)", html)
 check("every 'API <status>' error throw also includes the response body text (for diagnosability)",
       len(error_throws) > 0 and all('eb' in e for e in error_throws), str(error_throws))
 
@@ -354,9 +354,16 @@ check("every 'API <status>' error throw also includes the response body text (fo
 gen_m = re.search(r'async function genSummary\(\)(.*?)\n\s*btn\.disabled=false', html, re.S)
 check('genSummary() found', gen_m is not None)
 if gen_m:
-    mt = re.search(r'max_tokens\s*:\s*(\d+)', gen_m.group(1))
-    check('genSummary() max_tokens >= 2000 (1000 truncated the summary mid-sentence)',
-          mt is not None and int(mt.group(1)) >= 2000, f"max_tokens={mt.group(1) if mt else None}")
+    g = gen_m.group(1)
+    first = re.search(r'callSum\((\d+)\s*,\s*true\)', g)
+    check('genSummary() first call uses max_tokens >= 4096 (1000/3000 truncated the summary)',
+          first is not None and int(first.group(1)) >= 4096, f"first call={first.group(0) if first else None}")
+    # Regression (2026-11-02, 2nd round): Haiku/Sonnet/Opus 5.5 think by default ("adaptive thinking") and the
+    # hidden thinking tokens count against max_tokens — the summary was still cut off at max_tokens 3000.
+    check("genSummary() disables adaptive thinking (thinking tokens count against max_tokens)",
+          "thinking={type:'disabled'}" in g)
+    check("genSummary() automatically retries with a larger limit when stop_reason is 'max_tokens'",
+          re.search(r"if\(dat\.stop_reason==='max_tokens'\)dat=await callSum\((\d+)", g) is not None)
     check('genSummary() uses claude-haiku-5-5 (cheaper; switched from Sonnet on 2026-11-02)',
           "model:'claude-haiku-5-5'" in gen_m.group(1))
     check("genSummary() detects stop_reason==='max_tokens' and tells the user",
