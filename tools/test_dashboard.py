@@ -206,6 +206,19 @@ if WOW and DATA:
     check('cr_delta equals cr_cur - cr_prev for every WOW row',
           len(mismatched_cr_delta) == 0, str(mismatched_cr_delta[:5]))
 
+# Incremental imports (since 2026-11-09): the weekly series must stay gap-free and sorted
+if DATA and DATA.get('weeks'):
+    from datetime import date as _date, timedelta as _td
+    def _mon(l):
+        y, w = map(int, l.split('-')); return _date.fromisocalendar(y, w, 1)
+    _wk = DATA['weeks']
+    _gaps = [(a, b) for a, b in zip(_wk, _wk[1:]) if _mon(b) - _mon(a) != _td(days=7)]
+    check('DATA.weeks is a gap-free, sorted ISO week series', not _gaps, str(_gaps[:3]))
+    check('DATA.weekly_totals weeks equal DATA.weeks', [w['w'] for w in DATA['weekly_totals']] == _wk)
+    if WOW:
+        check('WOW_DATA compares the last two weeks of DATA.weeks',
+              WOW.get('last') == _wk[-1] and WOW.get('prev') == _wk[-2], f"{WOW.get('prev')}->{WOW.get('last')}")
+
 # ---------------------------------------------------------------------------
 # 3b. DAILY_DATA JSON VALIDITY + CONSISTENCY (Anomalien tab, daily-format CSV)
 # ---------------------------------------------------------------------------

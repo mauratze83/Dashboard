@@ -69,7 +69,7 @@ for intent in it_inv:
     inv = it_inv[intent]; con = it_con[intent]
     cr = round(con/inv*100,1) if inv else 0
     intent_totals.append({'i': intent, 'inv': inv, 'con': con, 'cr': cr, 'cs': round(it_cs[intent],2)})
-intent_totals.sort(key=lambda x: -x['inv'])
+intent_totals.sort(key=lambda x: (-x['inv'], x['i']))
 
 top10_names = [x['i'] for x in intent_totals[:10]]
 
@@ -177,7 +177,7 @@ for intent in all_intents:
         'inv_delta_pct': round((ic - ip) / ip * 100, 1) if ip else 0.0,
         'cr_delta': round(crc - crp, 1),
     })
-wow.sort(key=lambda x: -x['inv_cur'])
+wow.sort(key=lambda x: (-x['inv_cur'], x['i']))
 
 # remainder row: full weekly totals minus sum of clean per-intent rows, for both weeks
 full_inv_cur = wt_inv[last_w]; full_con_cur = wt_con[last_w]; full_cs_cur = wt_cs[last_w]

@@ -8,6 +8,14 @@ NATIONWIDE_HOLIDAYS = {
     '2026-05-14': 'Christi Himmelfahrt',
     '2026-05-25': 'Pfingstmontag',
     '2026-10-03': 'Tag der Deutschen Einheit',
+    '2026-12-25': '1. Weihnachtstag',
+    '2026-12-26': '2. Weihnachtstag',
+    '2027-01-01': 'Neujahr',
+    '2027-03-26': 'Karfreitag',
+    '2027-03-29': 'Ostermontag',
+    '2027-05-01': 'Tag der Arbeit',
+    '2027-05-06': 'Christi Himmelfahrt',
+    '2027-05-17': 'Pfingstmontag',
 }
 
 # School holiday windows where MANY (not necessarily all) German states have school breaks
@@ -21,6 +29,8 @@ SCHOOL_HOLIDAY_RANGES = [
     ('2026-05-26', '2026-05-29', 'Pfingstferien (einige Bundeslaender)'),
     ('2026-07-20', '2026-08-28', 'Sommerferien (viele Bundeslaender, versetzter Beginn/Ende)'),
     ('2026-10-05', '2026-10-17', 'Herbstferien (viele Bundeslaender)'),
+    ('2026-12-21', '2027-01-06', 'Weihnachtsferien (viele Bundeslaender)'),
+    ('2027-03-22', '2027-04-03', 'Osterferien (viele Bundeslaender)'),
 ]
 
 from datetime import date, timedelta
