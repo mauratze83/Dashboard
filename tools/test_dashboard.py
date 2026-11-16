@@ -417,8 +417,16 @@ if tab_arr_m:
           set(tab_arr) == set(nav_tab_ids), f"TAB[]={tab_arr} nav-tabs={nav_tab_ids}")
 
 # Tabs Heatmap + Clustering removed on 2026-11-16 (user request)
-for leftover in ['page-heatmap', 'page-cluster', 'renderHeatmap', 'renderCluster', 'hmColor', 'clusterGrid']:
+# Korrelation removed on 2026-11-16 (Clustering was removed by mistake and restored the same day)
+for leftover in ['page-heatmap', 'renderHeatmap', 'hmColor', 'page-korr', 'renderKorr', 'korr-table', 'pearson(', 'corrColor']:
     check(f'Removed tab leftovers: no "{leftover}" in the file', leftover not in html)
+check('Clustering tab present: nav tab, page, renderCluster, dispatch in reRender and showPage',
+      "showPage('cluster',this)" in html and 'id="page-cluster"' in html and 'function renderCluster(' in html
+      and "if(id==='cluster'){renderCluster();markTabRendered('cluster');}" in html and "if(id==='cluster')renderCluster();" in html)
+check('Clustering uses the new design (elevation, mkChart, no overshoot easing on cluster cards)',
+      re.search(r'\n\.cluster-card\{[^\n]*box-shadow:var\(--elev-1\)', html) is not None
+      and "mkChart('clusterCr'" in html and "mkChart('clusterVol'" in html
+      and '.cluster-card.anim-in{animation:kpiIn .4s cubic-bezier(.2,.8,.2,1)' in html)
 # every page referenced by showPage(...) / getElementById('page-...') / TAB[] must exist
 _pages = set(re.findall(r'id="page-([a-z]+)"', html))
 _refs = set(re.findall(r"showPage\('([a-z]+)'", html)) | set(re.findall(r"getElementById\('page-([a-z]+)'\)", html))
