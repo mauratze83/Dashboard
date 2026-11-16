@@ -206,6 +206,15 @@ if WOW and DATA:
     check('cr_delta equals cr_cur - cr_prev for every WOW row',
           len(mismatched_cr_delta) == 0, str(mismatched_cr_delta[:5]))
 
+# Kanäle-Tab: Involved je Kanal im Zeitverlauf (2026-11-16)
+if DATA:
+    _wi = DATA.get('weekly_inv_by_ch') or {}
+    check('DATA.weekly_inv_by_ch exists for every main channel with one value per week',
+          bool(_wi) and all(len(_wi.get(c, [])) == len(DATA['weeks']) for c in DATA.get('channels', [])))
+    check('weekly Involved per channel adds up to ch_totals[channel].inv',
+          all(sum(_wi.get(c, [])) == DATA['ch_totals'][c]['inv'] for c in DATA.get('channels', [])))
+check('Kanäle tab has the Involved-over-time chart wired up', 'id="kanalInvLine"' in html and "mkChart('kanalInvLine'" in html)
+
 # Incremental imports (since 2026-11-09): the weekly series must stay gap-free and sorted
 if DATA and DATA.get('weeks'):
     from datetime import date as _date, timedelta as _td
