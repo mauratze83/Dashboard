@@ -401,6 +401,17 @@ if tab_arr_m:
     check('TAB[] (swipe navigation) matches nav-tab ids exactly',
           set(tab_arr) == set(nav_tab_ids), f"TAB[]={tab_arr} nav-tabs={nav_tab_ids}")
 
+# Tabs Heatmap + Clustering removed on 2026-11-16 (user request)
+for leftover in ['page-heatmap', 'page-cluster', 'renderHeatmap', 'renderCluster', 'hmColor', 'clusterGrid']:
+    check(f'Removed tab leftovers: no "{leftover}" in the file', leftover not in html)
+# every page referenced by showPage(...) / getElementById('page-...') / TAB[] must exist
+_pages = set(re.findall(r'id="page-([a-z]+)"', html))
+_refs = set(re.findall(r"showPage\('([a-z]+)'", html)) | set(re.findall(r"getElementById\('page-([a-z]+)'\)", html))
+_tabm = re.search(r"TAB=\[([^\]]*)\]", html)
+if _tabm:
+    _refs |= set(re.findall(r"'([a-z]+)'", _tabm.group(1)))
+check('every referenced page (showPage, page-*, swipe TAB[]) exists in the HTML', _refs <= _pages, str(sorted(_refs - _pages)))
+
 # ---------------------------------------------------------------------------
 # 5. KI-CHAT REMOVED (2026-11-02, auf Wunsch entfernt — zu hoher Token-Verbrauch)
 # ---------------------------------------------------------------------------
