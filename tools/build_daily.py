@@ -128,6 +128,7 @@ for row in clean_rows:
 weekly_cr_by_ch = {}
 weekly_cs_by_ch = {}
 weekly_inv_by_ch = {}
+weekly_con_by_ch = {}
 for ch in MAIN_CH:
     crs = []
     css = []
@@ -139,6 +140,7 @@ for ch in MAIN_CH:
     weekly_cr_by_ch[ch] = crs
     weekly_cs_by_ch[ch] = css
     weekly_inv_by_ch[ch] = [wch_inv[ch].get(w, 0) for w in weeks]
+    weekly_con_by_ch[ch] = [wch_con[ch].get(w, 0) for w in weeks]
 
 DATA = {
     'weeks': weeks,
@@ -151,6 +153,7 @@ DATA = {
     'weekly_cr_by_ch': weekly_cr_by_ch,
     'weekly_cs_by_ch': weekly_cs_by_ch,
     'weekly_inv_by_ch': weekly_inv_by_ch,
+    'weekly_con_by_ch': weekly_con_by_ch,
 }
 
 # ============================================================

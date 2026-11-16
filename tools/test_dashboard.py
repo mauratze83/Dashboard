@@ -213,6 +213,12 @@ if DATA:
           bool(_wi) and all(len(_wi.get(c, [])) == len(DATA['weeks']) for c in DATA.get('channels', [])))
     check('weekly Involved per channel adds up to ch_totals[channel].inv',
           all(sum(_wi.get(c, [])) == DATA['ch_totals'][c]['inv'] for c in DATA.get('channels', [])))
+if DATA:
+    _wc = DATA.get('weekly_con_by_ch') or {}
+    check('DATA.weekly_con_by_ch adds up to ch_totals[channel].con for every channel',
+          bool(_wc) and all(sum(_wc.get(c, [])) == DATA['ch_totals'][c]['con'] for c in DATA.get('channels', [])))
+check('Kanäle tab follows the time filter (renderKanal uses weeks())',
+      re.search(r'function renderKanal\(\)\{[\s\S]{0,400}weeks\(\)', html) is not None)
 check('Kanäle tab has the Involved-over-time chart wired up', 'id="kanalInvLine"' in html and "mkChart('kanalInvLine'" in html)
 
 # Incremental imports (since 2026-11-09): the weekly series must stay gap-free and sorted
