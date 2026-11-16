@@ -412,6 +412,24 @@ if _tabm:
     _refs |= set(re.findall(r"'([a-z]+)'", _tabm.group(1)))
 check('every referenced page (showPage, page-*, swipe TAB[]) exists in the HTML', _refs <= _pages, str(sorted(_refs - _pages)))
 
+# Apple-Design-Überarbeitung (2026-11-16): Glasebene, ruhige Animationen, Systemschrift
+_css = html.split('</style>')[0]
+check('no Google Fonts / Inter / JetBrains Mono (system font stack instead)',
+      'fonts.googleapis' not in html and "family:'Inter'" not in html and 'JetBrains' not in html)
+check('header, nav and time filter sit inside one .chrome glass layer',
+      re.search(r'<div class="chrome">\s*<header>.*?<nav>.*?<div id="timeFilterBar">', html, re.S) is not None)
+_chrome = html[html.find('<div class="chrome">'):html.find('<div id="timeFilterBar">')]
+check('uploadOverlay (position:fixed) is NOT inside the backdrop-filter layer', 'uploadOverlay' not in _chrome)
+check('.chrome uses backdrop-filter and has reduced-transparency + contrast fallbacks',
+      'backdrop-filter:blur(' in _css and 'prefers-reduced-transparency' in _css and 'prefers-contrast:more' in _css)
+check('no endlessly looping animations (no "infinite")', 'infinite' not in _css)
+check('prefers-reduced-motion is handled in CSS and for Chart.js',
+      'prefers-reduced-motion:reduce' in _css and 'Chart.defaults.animation=false' in html)
+_overshoot = [m for m in re.findall(r'cubic-bezier\(([^)]*)\)', _css) if any(float(v) > 1 for v in m.split(',')[1::2])]
+check('no overshooting easing curves (cubic-bezier y > 1)', not _overshoot, str(_overshoot))
+check('KPI/card entry animations play once per data state (trigAnim uses _animGen)', 'dataset.ag===g' in html and '_animGen++' in html)
+check('no uppercase labels in the main CSS', 'text-transform:uppercase' not in _css.split('@media print')[0])
+
 # ---------------------------------------------------------------------------
 # 5. KI-CHAT REMOVED (2026-11-02, auf Wunsch entfernt — zu hoher Token-Verbrauch)
 # ---------------------------------------------------------------------------
