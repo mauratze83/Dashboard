@@ -430,6 +430,24 @@ check('no overshooting easing curves (cubic-bezier y > 1)', not _overshoot, str(
 check('KPI/card entry animations play once per data state (trigAnim uses _animGen)', 'dataset.ag===g' in html and '_animGen++' in html)
 check('no uppercase labels in the main CSS', 'text-transform:uppercase' not in _css.split('@media print')[0])
 
+# Apple-Design Teil 2 (2026-11-16): Tab-Markierung, Wischen, Tiefe, Feedback, Diagramm-Updates
+check('sliding tab indicator exists and is moved on click (moveNavInd in showPage)',
+      'id="navInd"' in html and re.search(r'function showPage\(id,el\)\{[^}]*moveNavInd\(el\)', html) is not None)
+check('swipe navigation follows the finger and uses momentum projection + rubber band',
+      'function project(v)' in html and 'function rubber(' in html and "addEventListener('touchmove'" in html)
+check('swipe tab list matches the nav tabs',
+      re.findall(r"showPage\('([a-z]+)',this\)", html) == re.findall(r"'([a-z]+)'", re.search(r"var TAB=\[([^\]]*)\]", html).group(1)))
+check('cards use elevation instead of plain borders (box-shadow var(--elev-*))',
+      re.search(r'\n\.card\{[^\n]*box-shadow:var\(--elev-1\)', html) is not None and re.search(r'\n\.kpi\{[^\n]*box-shadow:var\(--elev-2\)', html) is not None)
+check('chart colors follow the light/dark theme (chartTheme in baseOpts), no hardcoded dark grid',
+      'function chartTheme()' in html and "grid:{color:'#1c2035'}" not in html)
+check('charts are updated in place (mkChart) and reRender no longer destroys them',
+      html.count('new Chart(') == 1 and 'function mkChart(' in html
+      and re.search(r'function reRender\(\)\{\s*Object\.keys\(charts\)\.forEach', html) is None)
+check('buttons give press feedback on :active', '.btn:active,' in html and 'transform:scale(.97)' in html)
+check('detail view zooms from the clicked element (page-zoom with transform-origin)', 'page-zoom' in html and '_detailOrigin' in html)
+check('KPI grids can shrink on small screens (minmax(0,1fr))', 'repeat(2,minmax(0,1fr))!important' in html)
+
 # ---------------------------------------------------------------------------
 # 5. KI-CHAT REMOVED (2026-11-02, auf Wunsch entfernt — zu hoher Token-Verbrauch)
 # ---------------------------------------------------------------------------
