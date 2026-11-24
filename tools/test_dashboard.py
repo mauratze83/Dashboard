@@ -471,6 +471,34 @@ check('buttons give press feedback on :active', '.btn:active,' in html and 'tran
 check('detail view zooms from the clicked element (page-zoom with transform-origin)', 'page-zoom' in html and '_detailOrigin' in html)
 check('KPI grids can shrink on small screens (minmax(0,1fr))', 'repeat(2,minmax(0,1fr))!important' in html)
 
+# Märkte (2026-11-24): eingebettete Faktentabelle + Märkte-Tab
+FACTS = None
+try:
+    FACTS = json.loads(extract_json_block('const FACTS = '))
+    check('FACTS parses as valid JSON with column layout', all(k in FACTS for k in ('w', 'ch', 'm', 'i', 'r')) and len(FACTS['r']) == 7)
+except Exception as ex:
+    check('FACTS parses as valid JSON with column layout', False, str(ex))
+if FACTS and DATA:
+    _r = FACTS['r']
+    check('FACTS columns have equal length', len({len(c) for c in _r}) == 1)
+    check('FACTS weeks equal DATA.weeks', FACTS['w'] == DATA['weeks'])
+    _inv_by_w = {}
+    for wi, v in zip(_r[0], _r[4]):
+        _inv_by_w[wi] = _inv_by_w.get(wi, 0) + v
+    check('FACTS Involved per week (all markets/channels) equals DATA.weekly_totals',
+          all(_inv_by_w.get(k, 0) == wt['inv'] for k, wt in enumerate(DATA['weekly_totals'])))
+    _main = {FACTS['ch'].index(c) for c in DATA.get('channels', []) if c in FACTS['ch']}
+    _nz = {FACTS['i'].index(x) for x in ['None','Saleslivechat','Spam','Kein Topintent','Catchphrasedecease','Chatimmobilienwirtschaft','Surveyimmobilienwirtschaft'] if x in FACTS['i']}
+    _ci = {}
+    for ci, ii, v in zip(_r[1], _r[3], _r[4]):
+        if ci in _main and ii not in _nz:
+            _ci[FACTS['ch'][ci]] = _ci.get(FACTS['ch'][ci], 0) + v
+    check('FACTS (main channels, no noise) per channel equals DATA.ch_totals', all(_ci.get(c, 0) == DATA['ch_totals'][c]['inv'] for c in DATA['channels']))
+    check('all six main markets present in FACTS', all(m in FACTS['m'] for m in ['Mobilfunk', 'Dsl', 'Kabel', 'Unity', 'Callya', 'Fusionc']))
+check('Märkte tab wired (nav, page, renderMaerkte in reRender and showPage)',
+      "showPage('maerkte',this)" in html and 'id="page-maerkte"' in html and 'function renderMaerkte(' in html
+      and "if(id==='maerkte'){renderMaerkte();markTabRendered('maerkte');}" in html and "if(id==='maerkte')renderMaerkte();" in html)
+
 # ---------------------------------------------------------------------------
 # 5. KI-CHAT REMOVED (2026-11-02, auf Wunsch entfernt — zu hoher Token-Verbrauch)
 # ---------------------------------------------------------------------------

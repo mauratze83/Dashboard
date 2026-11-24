@@ -29,12 +29,12 @@ def replace_block(html, marker, obj):
     return html[:start] + json.dumps(obj, ensure_ascii=False, separators=(',', ':')) + html[i + 1:]
 
 assert len(re.findall(r'<!DOCTYPE', html)) == 1
-for name in ('DATA', 'WOW_DATA', 'DAILY_DATA'):
+for name in ('DATA', 'WOW_DATA', 'DAILY_DATA', 'FACTS'):
     p = os.path.join(json_dir, name + '.json')
     if os.path.exists(p):
         html = replace_block(html, f'const {name} = ', json.load(open(p, encoding='utf-8')))
         print(f'injected {name}')
-for marker in ('<!DOCTYPE', 'const DATA = ', 'const WOW_DATA = ', 'const DAILY_DATA = '):
+for marker in ('<!DOCTYPE', 'const DATA = ', 'const WOW_DATA = ', 'const DAILY_DATA = ', 'const FACTS = '):
     assert len(re.findall(re.escape(marker), html)) == 1, f'post-check failed for {marker!r}'
 open(html_path, 'w', encoding='utf-8').write(html)
 print('post-verify OK, size', len(html))

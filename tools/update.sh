@@ -32,6 +32,7 @@ mkdir -p "$WORK/w" "$WORK/d"
 python3 "$DIR/build_weekly.py" "$ROOT/data/weekly.csv" "$WORK/w" > "$WORK/build.log"
 python3 "$DIR/build_daily.py" "$ROOT/data/daily" "$WORK/d" >> "$WORK/build.log"
 cp "$WORK/d/DAILY_DATA.json" "$WORK/w/"
+python3 "$DIR/build_facts.py" "$ROOT/data/weekly.csv" "$WORK/w" >> "$WORK/build.log"
 if ! python3 "$DIR/inject.py" "$HTML" "$WORK/w" > "$WORK/inject.log" 2>&1; then
   cat "$WORK/inject.log" >&2; restore; echo "Einbau fehlgeschlagen — alles zurückgesetzt." >&2; exit 1
 fi
