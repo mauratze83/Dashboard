@@ -112,6 +112,11 @@ main{padding:20px;max-width:1440px;margin:0 auto}
 .mk-qual b{display:block;font-size:20px;font-weight:600;letter-spacing:-.02em;color:var(--thi)}
 .mk-qual span{font-size:12px;color:var(--tmid)}
 .mk-scroll{max-height:460px;overflow:auto}
+.mkx td{vertical-align:middle}
+.mkx .mk-cell small.dev-up{color:var(--green)}.mkx .mk-cell small.dev-dn{color:var(--red)}
+.mkx td.mkx-pat{font:400 12px/1.45 var(--sans);color:var(--tmid);min-width:200px;text-align:left}
+.mkx .mk-cell small{white-space:nowrap}
+.mkx .mkx-mk{display:block;font-size:11px;color:var(--tlo);margin-top:2px}
 @media(max-width:600px){.mk-qual{grid-template-columns:minmax(0,1fr)}.mk-cell{min-width:78px}}
 /* KPI */
 .kpi-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-bottom:24px}
@@ -488,6 +493,12 @@ body.drag-active::after{content:'CSV hier ablegen';position:fixed;top:0;left:0;r
   <div class="card">
     <div class="card-head"><div><div class="card-title">Markt × Kanal</div><div class="card-sub">CR und Involved im gewählten Zeitraum · grün umrandet = stärkster, rot gestrichelt = schwächster Kanal des Markts</div></div></div>
     <div class="table-wrap"><table class="mk-matrix"><thead id="mkMatrixHead"></thead><tbody id="mkMatrixBody"></tbody></table></div>
+  </div>
+  <div class="card" id="mkxCard">
+    <div class="card-head"><div><div class="card-title">Intent × Kanal: Ausreißer</div><div class="card-sub" id="mkxSub"></div></div><div class="mk-chips" id="mkxChips"></div></div>
+    <div class="mk-chips" id="mkxSort" style="margin-bottom:10px"></div>
+    <div class="table-wrap mk-scroll" style="max-height:520px"><table class="mk-matrix mkx"><thead><tr><th>Intent</th><th>Webchat</th><th>Appchat</th><th>WhatsApp</th><th>Muster</th><th>Potenzial / Woche</th></tr></thead><tbody id="mkxBody"></tbody></table></div>
+    <div class="mk-note">Erwartung je Kanal = CR des Intents, verschoben um den üblichen Kanalabstand im Markt (z. B. ist WhatsApp in jedem Markt deutlich schwächer; gerechnet auf Log-Odds, damit Intents mit sehr hoher oder sehr niedriger CR fair verglichen werden). Die kleine Zahl unter der CR zeigt die Abweichung von dieser Erwartung. Gelistet sind Intents mit mindestens <span id="mkxMin"></span> Kontakten in mindestens zwei Kanälen und einer Spreizung der Abweichungen von mindestens 12 PP. Potenzial = zusätzlich containte Kontakte pro Woche, wenn der schwächste Kanal seine Erwartung erreichen würde.</div>
   </div>
   <div class="card" id="fcCard">
     <div class="card-head"><div><div class="card-title">FusionC-Migration</div><div class="card-sub">Kabel und Unity werden in FusionC zusammengeführt · Rückgang bei Kabel/Unity ist bis zum Abschluss der Migration erwartet</div></div></div>
@@ -1031,13 +1042,14 @@ function renderMaerkte(){
   var lbl=wIdx.map(k=>'KW'+F.w[k].split('-')[1]);
   var win=mkWindows(ws),MS=new Set(MK_MAIN);
   // Aggregation in einem Durchlauf
-  var mw={},mc={},mi={},miw={};
+  var mw={},mc={},mi={},miw={},mic={};
   MK_MAIN.forEach(m=>{mw[m]={inv:new Array(nW).fill(0),con:new Array(nW).fill(0)};mc[m]={};mi[m]={};});
   factsScan({mainCh:true,noNoise:true,markets:MS},function(wi,ch,m,i,inv,con,cs){
     mw[m].inv[wi]+=inv;mw[m].con[wi]+=con;
     var key=m+'|'+i,a=miw[key];if(!a)a=miw[key]={inv:new Array(nW).fill(0),con:new Array(nW).fill(0)};a.inv[wi]+=inv;a.con[wi]+=con;
     if(wSet.has(wi)){var c=mc[m][ch]||(mc[m][ch]={inv:0,con:0});c.inv+=inv;c.con+=con;
-      var t=mi[m][i]||(mi[m][i]={inv:0,con:0,cs:0});t.inv+=inv;t.con+=con;t.cs+=cs;}});
+      var t=mi[m][i]||(mi[m][i]={inv:0,con:0,cs:0});t.inv+=inv;t.con+=con;t.cs+=cs;
+      var ki=m+'|'+i,x=mic[ki]||(mic[ki]={}),y=x[ch]||(x[ch]={inv:0,con:0});y.inv+=inv;y.con+=con;}});
   var sum=(arr,S)=>{var s=0;S.forEach(k=>s+=arr[k]);return s;};
   var tot={};MK_MAIN.forEach(m=>{var inv=sum(mw[m].inv,wIdx),con=sum(mw[m].con,wIdx);tot[m]={inv,con,cr:cr1(con,inv)};});
   // Kacheln
@@ -1074,7 +1086,9 @@ function renderMaerkte(){
   // Intent-Ansicht des gewählten Markts
   if(MK_MAIN.indexOf(_mkSel)<0)_mkSel=MK_MAIN[0];
   document.getElementById('mkChips').innerHTML=MK_MAIN.map(m=>'<button class="mk-chip'+(m===_mkSel?' active':'')+'" style="'+(m===_mkSel?'background:'+MK_COL[m]:'')+'" onclick="_mkSel=\''+m+'\';renderMkIntents()">'+mkLabel(m)+'</button>').join('');
-  window._mkCtx={mi,miw,win,tot};
+  window._mkCtx={mi,miw,win,tot,mc,mic,nW:wIdx.length};
+  if(_mkFilter&&MK_MAIN.indexOf(_mkFilter)>=0)_mkxSel=_mkFilter;
+  renderMkXch();
   renderMkIntents();
   renderMkQuality(wIdx,lbl);
   if(typeof renderFusionC==='function')renderFusionC(wIdx,lbl,miw,mw);
@@ -1101,6 +1115,44 @@ function renderMkIntents(){
   var up=mv.filter(r=>r.dCr>0).sort((a,b)=>b.dCr-a.dCr).slice(0,5),dn=mv.filter(r=>r.dCr<0).sort((a,b)=>a.dCr-b.dCr).slice(0,5);
   document.getElementById('mkWin').innerHTML=up.length?up.map(item).join(''):none;
   document.getElementById('mkLose').innerHTML=dn.length?dn.map(item).join(''):none;}
+
+/* Intent × Kanal: Abweichung vom üblichen Kanalabstand des Markts */
+var _mkxSel='Alle',_mkxSort='spread';
+function mkxRows(C,minV){
+  var out=[];
+  Object.keys(C.mic).forEach(key=>{
+    var p=key.split('|'),m=p[0],i=p[1],x=C.mic[key],base=C.mc[m];
+    var chs=MAIN_CH.filter(c=>x[c]&&x[c].inv>=minV&&base[c]&&base[c].inv>0);
+    if(chs.length<2)return;
+    var inv=0,con=0,bl=0;chs.forEach(c=>{inv+=x[c].inv;con+=x[c].con;});
+    var lg=v=>{v=Math.min(.995,Math.max(.005,v));return Math.log(v/(1-v));},sg=z=>1/(1+Math.exp(-z));
+    chs.forEach(c=>bl+=x[c].inv/inv*lg(base[c].con/base[c].inv));
+    var crI=con/inv,cells={};
+    chs.forEach(c=>{var cr=x[c].con/x[c].inv,exp=sg(lg(crI)+lg(base[c].con/base[c].inv)-bl);cells[c]={inv:x[c].inv,cr:cr*100,exp:exp*100,dev:(cr-exp)*100};});
+    var hi=chs.reduce((a,b)=>cells[b].dev>cells[a].dev?b:a),lo=chs.reduce((a,b)=>cells[b].dev<cells[a].dev?b:a);
+    var spread=cells[hi].dev-cells[lo].dev;
+    var pot=cells[lo].dev<0?cells[lo].inv*(-cells[lo].dev)/100/Math.max(1,C.nW):0;
+    out.push({m,i,cells,hi,lo,spread,pot,all:x});});
+  return out;}
+function renderMkXch(){
+  var C=window._mkCtx;if(!C||!C.mic)return;
+  var minV=Math.max(100,Math.min(300,40*C.nW));
+  document.getElementById('mkxMin').textContent=minV.toLocaleString('de-DE');
+  document.getElementById('mkxChips').innerHTML=['Alle'].concat(MK_MAIN).map(m=>'<button class="mk-chip'+(m===_mkxSel?' active':'')+'" style="'+(m===_mkxSel?'background:'+(MK_COL[m]||'var(--accent)'):'')+'" onclick="_mkxSel=\''+m+'\';renderMkXch()">'+(m==='Alle'?'Alle Märkte':mkLabel(m))+'</button>').join('');
+  document.getElementById('mkxSort').innerHTML=[['spread','Nach Abweichung'],['pot','Nach Potenzial']].map(o=>'<button class="mk-chip'+(o[0]===_mkxSort?' active':'')+'" style="'+(o[0]===_mkxSort?'background:var(--accent)':'')+'" onclick="_mkxSort=\''+o[0]+'\';renderMkXch()">'+o[1]+'</button>').join('');
+  var rows=mkxRows(C,minV).filter(r=>r.spread>=12&&(_mkxSel==='Alle'||r.m===_mkxSel));
+  rows.sort(_mkxSort==='pot'?(a,b)=>b.pot-a.pot:(a,b)=>b.spread-a.spread);
+  var shown=rows.slice(0,60);
+  document.getElementById('mkxSub').textContent=(_mkxSel==='Alle'?'Alle Hauptmärkte':mkLabel(_mkxSel))+' · '+rows.length+' auffällige Intents'+(rows.length>shown.length?' (Top '+shown.length+')':'')+' · gewählter Zeitraum';
+  var f=v=>{var r=Math.round(v);return r===0?'±0':(r>0?'+':'−')+Math.abs(r);};
+  document.getElementById('mkxBody').innerHTML=shown.length?shown.map(r=>{
+    var cell=c=>{var d=r.cells[c];if(!d){var a=r.all[c];return'<td><span class="mk-cell" style="opacity:.45"><b>'+(a&&a.inv?cr1(a.con,a.inv).toFixed(1)+'%':'—')+'</b><small>'+(a?fmtK(a.inv):'0')+' · zu wenig</small></span></td>';}
+      var cls=c===r.hi&&d.dev>=4?'best':c===r.lo&&d.dev<=-4?'worst':'';
+      return'<td><span class="mk-cell '+cls+'" style="background:'+crBg(d.cr)+'1f" title="Erwartet: '+d.exp.toFixed(1)+' %"><b class="'+crCls(d.cr)+'">'+d.cr.toFixed(1)+'%</b><small>'+fmtK(d.inv)+' · <span class="'+(d.dev>=4?'dev-up':d.dev<=-4?'dev-dn':'')+'">'+f(d.dev)+' PP</span></small></span></td>';};
+    var pat=r.hi+' '+f(r.cells[r.hi].dev)+' PP über, '+r.lo+' '+f(r.cells[r.lo].dev)+' PP unter Erwartung';
+    return'<tr><td class="name-cell"><span style="cursor:pointer" data-i="'+r.i+'" onclick="openDetail(this.dataset.i)">'+r.i.replace(/_/g,' ')+'</span><span class="mkx-mk"><span class="mk-dot" style="background:'+MK_COL[r.m]+'"></span>'+mkLabel(r.m)+'</span></td>'
+      +MAIN_CH.map(cell).join('')+'<td class="mkx-pat">'+pat+'</td><td>'+(r.pot>=1?'+'+Math.round(r.pot).toLocaleString('de-DE'):'—')+'</td></tr>';}).join('')
+    :'<tr><td colspan="6"><div class="mk-note">Keine auffälligen Intents im gewählten Zeitraum.</div></td></tr>';}
 
 function renderMkQuality(wIdx,lbl){
   var F=factsIdx(),nW=F.w.length,q={},all=new Array(nW).fill(0),allCon=0,allInv=0,kmInv=0,kmCon=0,wSet=new Set(wIdx);

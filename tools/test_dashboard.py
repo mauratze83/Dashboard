@@ -521,6 +521,10 @@ if DAILY:
               sum(d['inv'] for d in _bm.get('Unity', {}).get('daily_totals', [])) == _wf)
 check('getFD computes exact intent values from FACTS for a partial time range', 'exakt aus der Faktentabelle für die gewählten Wochen' in html)
 check('rebuildWow uses exact FACTS values and updates the week labels', 'WOW_DATA.prev=wA;WOW_DATA.last=wB;buildWowDeduped(res.wow)' in html)
+check('Intent x Kanal outlier card wired (card, logit expectation, called from renderMaerkte)',
+      'id="mkxCard"' in html and 'function renderMkXch(' in html and 'function mkxRows(' in html
+      and 'renderMkXch();' in html.split('function renderMaerkte(')[1].split('function renderMkIntents(')[0]
+      and 'Math.log(v/(1-v))' in html)
 check('Märkte tab wired (nav, page, renderMaerkte in reRender and showPage)',
       "showPage('maerkte',this)" in html and 'id="page-maerkte"' in html and 'function renderMaerkte(' in html
       and "if(id==='maerkte'){renderMaerkte();markTabRendered('maerkte');}" in html and "if(id==='maerkte')renderMaerkte();" in html)
