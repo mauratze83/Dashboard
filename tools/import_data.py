@@ -48,6 +48,9 @@ def week_monday(label):
 
 
 KNOWN_CHANNELS = {'ABC', 'Appchat', 'SMS', 'Webchat', 'WhatsApp'}
+# Märkte, wie sie im Composer-Export geschrieben werden. 'kumuliert' = alter Export ohne Marktaufteilung.
+MAIN_MARKETS = ['Mobilfunk', 'Dsl', 'Kabel', 'Unity', 'Callya', 'Fusionc']
+KNOWN_MARKETS = set(MAIN_MARKETS) | {'Kein Markt', 'Multiple', 'Not In Use', 'Unknown', 'kumuliert'}
 INT_RE = r'^\d{1,3}(\.\d{3})*$'                    # 1.491 / 98.526 (German thousands separator)
 DEC_RE = r'^\d{1,3}(\.\d{3})*(,\d{1,2})?$'         # 142.708,72 / 329,13 / 196.157,4
 PCT_RE = r'^\d{1,3},\d%$'                          # 87,8%
@@ -104,14 +107,15 @@ def read_export(path):
             ch, it = row['Kanal'].strip(), row['Intent'].strip()
             if not ch or not it:
                 bad['Kanal oder Intent leer'].append(ln)
-            if row['Markt'].strip() != 'kumuliert':
-                bad['Markt ist nicht "kumuliert"'].append(ln)
+            mk = row['Markt'].strip()
+            if not mk:
+                bad['Markt leer'].append(ln)
             inv, con = int(round(vals[0])), int(round(vals[1]))
             if con > inv:
                 bad['Contained größer als Involved'].append(ln)
             if inv and re.match(PCT_RE, raw_cr) and abs(parse_de_num(raw_cr) - con / inv * 100) > 0.15:
                 bad['%CR passt nicht zu Contained/Involved'].append(ln)
-            key = (p, ch, it)
+            key = (p, ch, mk, it)
             if key in rows:
                 dups.append(key)
             rows[key] = [inv, con, vals[2]]
@@ -123,14 +127,60 @@ def read_export(path):
     return kind, rows, total, dups, se
 
 
+def market_messages(rows):
+    """Infos/Warnungen zur Marktaufteilung eines Exports (blockieren den Import nicht)."""
+    infos, warns = [], []
+    mks = {k[2] for k in rows}
+    if mks == {'kumuliert'}:
+        warns.append('Export ohne Marktaufteilung (Markt = "kumuliert") – Wochenansichten sind vollständig, '
+                     'aber die Marktauswertungen haben für diesen Zeitraum keine Daten. Bitte möglichst mit Markt exportieren.')
+        return infos, warns
+    new_mk = mks - KNOWN_MARKETS
+    if new_mk:
+        warns.append(f'Neue Marktbezeichnung(en): {", ".join(sorted(new_mk))} – wird gespeichert, aber in Marktanalysen '
+                     f'erst berücksichtigt, wenn sie in MAIN_MARKETS aufgenommen wird.')
+    missing = [m for m in MAIN_MARKETS if m not in mks and m != 'Fusionc']
+    if missing:
+        warns.append(f'Hauptmärkte fehlen in der Datei: {", ".join(missing)}')
+    tot = sum(v[0] for v in rows.values()) or 1
+    share = lambda m: sum(v[0] for k, v in rows.items() if k[2] == m) / tot * 100
+    infos.append('Märkte: ' + ', '.join(f'{m} {share(m):.1f} %' for m in MAIN_MARKETS) + f' · Kein Markt {share("Kein Markt"):.1f} %')
+    return infos, warns
+
+
+def _read_csv_into(rows, path, pcol):
+    with open(path, encoding='utf-8-sig', newline='') as f:
+        for row in csv.DictReader(f):
+            k = (row[pcol], row['Kanal'], row.get('Markt') or 'kumuliert', row['Intent'])
+            v = [int(row['#Involved']), int(row['#Contained']), parse_de_num(row['€CS'])]
+            if k in rows:  # sollte nicht vorkommen; sicherheitshalber addieren statt überschreiben
+                rows[k] = [rows[k][0] + v[0], rows[k][1] + v[1], rows[k][2] + v[2]]
+            else:
+                rows[k] = v
+
+
 def read_store(path, pcol):
+    """path: eine CSV-Datei oder ein Ordner mit CSV-Dateien (Tagesdaten je Monat)."""
     rows = {}
-    if os.path.exists(path):
-        with open(path, encoding='utf-8-sig', newline='') as f:
-            for row in csv.DictReader(f):
-                rows[(row[pcol], row['Kanal'], row['Intent'])] = [
-                    int(row['#Involved']), int(row['#Contained']), parse_de_num(row['€CS'])]
+    if os.path.isdir(path):
+        for fn in sorted(os.listdir(path)):
+            if fn.endswith('.csv'):
+                _read_csv_into(rows, os.path.join(path, fn), pcol)
+    elif os.path.exists(path):
+        _read_csv_into(rows, path, pcol)
     return rows
+
+
+def write_daily_partitions(dirpath, rows, months):
+    """Schreibt nur die betroffenen Monatsdateien (YYYY-MM.csv) neu."""
+    os.makedirs(dirpath, exist_ok=True)
+    for m in sorted(months):
+        part = {k: v for k, v in rows.items() if k[0][:7] == m}
+        target = os.path.join(dirpath, m + '.csv')
+        if part:
+            write_store(target, 'Datum', part)
+        elif os.path.exists(target):
+            os.remove(target)
 
 
 def write_store(path, pcol, rows):
@@ -139,16 +189,17 @@ def write_store(path, pcol, rows):
     with open(tmp, 'w', encoding='utf-8', newline='') as f:
         w = csv.writer(f, quoting=csv.QUOTE_ALL)
         w.writerow([pcol] + COLS)
-        for (p, ch, it) in sorted(rows):
-            inv, con, cs = rows[(p, ch, it)]
+        for (p, ch, mk, it) in sorted(rows):
+            inv, con, cs = rows[(p, ch, mk, it)]
             cr = f'{con / inv * 100:.1f}'.replace('.', ',') + '%' if inv else '0,0%'
-            w.writerow([p, ch, 'kumuliert', it, inv, con, cr, fmt_cs(cs)])
+            w.writerow([p, ch, mk, it, inv, con, cr, fmt_cs(cs)])
     os.replace(tmp, path)
 
 
 def totals_by_period(rows):
     t = defaultdict(lambda: [0, 0, 0.0])
-    for (p, _, _), v in rows.items():
+    for k, v in rows.items():
+        p = k[0]
         t[p][0] += v[0]; t[p][1] += v[1]; t[p][2] += v[2]
     return t
 
@@ -176,6 +227,9 @@ def main():
     if not new:
         raise SystemExit('ERROR  Die Datei enthält keine Datenzeilen.')
     errors += ['Datenstruktur: ' + m for m in struct_errors]
+    _mi, _mw = market_messages(new)
+    infos += _mi
+    warns += _mw
     if not struct_errors:
         infos.append('Datenstruktur wie gewohnt (Spalten, Zahlenformate, Kanäle, Wertebereiche)')
     if dups:
@@ -189,16 +243,16 @@ def main():
                       f'– Datei vermutlich unvollständig.')
 
     weekly_path = os.path.join(a.data_dir, 'weekly.csv')
-    daily_path = os.path.join(a.data_dir, 'daily.csv')
+    daily_path = os.path.join(a.data_dir, 'daily')
     weekly = read_store(weekly_path, 'Woche')
     daily = read_store(daily_path, 'Datum')
     old_weekly_tot = totals_by_period(weekly)
     if weekly:
-        known_intents = {k[2] for k in weekly}
+        known_intents = {k[3] for k in weekly}
         recent = sorted({k[0] for k in weekly}, key=week_monday)[-4:]
-        recent_intents = {k[2] for k in weekly if k[0] in recent}
-        new_intents = {k[2] for k in new} - known_intents
-        gone_intents = recent_intents - {k[2] for k in new}
+        recent_intents = {k[3] for k in weekly if k[0] in recent}
+        new_intents = {k[3] for k in new} - known_intents
+        gone_intents = recent_intents - {k[3] for k in new}
         if new_intents:
             warns.append(f'Neue Intents, die es bisher nicht gab: {", ".join(sorted(new_intents))}')
         if gone_intents:
@@ -216,7 +270,7 @@ def main():
         merged_daily = {k: v for k, v in daily.items() if k[0] not in set(days)}
         merged_daily.update(new)
         days_per_week = defaultdict(set)
-        for (d, _, _) in merged_daily:
+        for (d, _, _, _) in merged_daily:
             days_per_week[iso_week(date.fromisoformat(d))].add(d)
         new_weekly = defaultdict(lambda: [0, 0, 0.0])
         touched_weeks = sorted({iso_week(date.fromisoformat(d)) for d in days})
@@ -229,10 +283,10 @@ def main():
                 errors.append(f'KW {wk} ist noch nicht vorbei ({n}/7 Tage) – bitte erst nach Wochenende importieren.')
             else:
                 errors.append(f'KW {wk} unvollständig: nur {n}/7 Tage vorhanden. Bitte die ganze Woche exportieren.')
-        for (d, ch, it), v in merged_daily.items():
+        for (d, ch, mk, it), v in merged_daily.items():
             wk = iso_week(date.fromisoformat(d))
             if wk in weeks_to_write:
-                acc = new_weekly[(wk, ch, it)]
+                acc = new_weekly[(wk, ch, mk, it)]
                 acc[0] += v[0]; acc[1] += v[1]; acc[2] += v[2]
         new_weekly = {k: [v[0], v[1], round(v[2], 2)] for k, v in new_weekly.items()}
     else:
@@ -290,7 +344,7 @@ def main():
                 warns.append(f'KW {wk}: CR weicht {dcr:+.1f} PP vom Median der Vorwochen ab – bitte prüfen.')
         if i > 0:
             pw = all_weeks[i - 1]
-            ints = lambda w: {k[2] for k in merged_weekly if k[0] == w}
+            ints = lambda w: {k[3] for k in merged_weekly if k[0] == w}
             chs = lambda w: {k[1] for k in merged_weekly if k[0] == w}
             if len(ints(wk)) < 0.85 * len(ints(pw)):
                 warns.append(f'KW {wk}: nur {len(ints(wk))} Intents (Vorwoche {len(ints(pw))}) – Export unvollständig?')
@@ -323,7 +377,7 @@ def main():
         return
     write_store(weekly_path, 'Woche', merged_weekly)
     if kind == 'daily':
-        write_store(daily_path, 'Datum', merged_daily)
+        write_daily_partitions(daily_path, merged_daily, {d[:7] for d in days})
     print('OK: Datenbestand aktualisiert.')
 
 

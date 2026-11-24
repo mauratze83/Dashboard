@@ -27,24 +27,24 @@ def iso_week_label(date_str):
 
 path = sys.argv[1]
 OUT = sys.argv[2] if len(sys.argv) > 2 else '.'
-with open(path, encoding='utf-8-sig') as f:
-    r = csv.DictReader(f)
-    rows = []
-    for row in r:
+_files = ([os.path.join(path, fn) for fn in sorted(os.listdir(path)) if fn.endswith('.csv')]
+          if os.path.isdir(path) else [path])
+rows = []
+for _fp in _files:
+  with open(_fp, encoding='utf-8-sig') as f:
+    for row in csv.DictReader(f):
         d = row['Datum'].strip()
         if not d:
             continue
-        inv = int(round(parse_de_num(row['#Involved'])))
-        con = int(round(parse_de_num(row['#Contained'])))
-        cs = parse_de_num(row['€CS'])
         rows.append({
             'd': d,
             'w': iso_week_label(d),
             'ch': row['Kanal'].strip(),
+            'mk': (row.get('Markt') or 'kumuliert').strip(),
             'intent': row['Intent'].strip(),
-            'inv': inv,
-            'con': con,
-            'cs': cs
+            'inv': int(round(parse_de_num(row['#Involved']))),
+            'con': int(round(parse_de_num(row['#Contained']))),
+            'cs': parse_de_num(row['€CS'])
         })
 
 weeks = sorted(set(r['w'] for r in rows))
