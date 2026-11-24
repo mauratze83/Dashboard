@@ -476,7 +476,17 @@ body.drag-active::after{content:'CSV hier ablegen';position:fixed;top:0;left:0;r
     <div class="card-head"><div><div class="card-title">Markt × Kanal</div><div class="card-sub">CR und Involved im gewählten Zeitraum · grün umrandet = stärkster, rot gestrichelt = schwächster Kanal des Markts</div></div></div>
     <div class="table-wrap"><table class="mk-matrix"><thead id="mkMatrixHead"></thead><tbody id="mkMatrixBody"></tbody></table></div>
   </div>
-  <!--MK_FUSIONC-->
+  <div class="card" id="fcCard">
+    <div class="card-head"><div><div class="card-title">FusionC-Migration</div><div class="card-sub">Kabel und Unity werden in FusionC zusammengeführt · Rückgang bei Kabel/Unity ist bis zum Abschluss der Migration erwartet</div></div></div>
+    <div class="mk-qual" id="fcKpis"></div>
+    <div class="grid2">
+      <div><div class="sec-label" style="margin-bottom:6px">Involved: Kabel, Unity, FusionC und Summe</div><div class="chart-wrap h240"><canvas id="fcVol"></canvas></div></div>
+      <div><div class="sec-label" style="margin-bottom:6px">FusionC-Anteil an Kabel + Unity + FusionC</div><div class="chart-wrap h240"><canvas id="fcShare"></canvas></div></div>
+    </div>
+    <div class="sec-label" style="margin:6px 0">CR je Intent: FusionC gegenüber Kabel + Unity (gleicher Zeitraum)</div>
+    <div class="table-wrap mk-scroll" style="max-height:320px"><table><thead><tr><th>Intent</th><th>FusionC Involved</th><th>CR FusionC</th><th>CR Kabel + Unity</th><th>Differenz</th></tr></thead><tbody id="fcBody"></tbody></table></div>
+    <div class="mk-note" id="fcNote"></div>
+  </div>
   <div class="card">
     <div class="card-head"><div><div class="card-title">Intents je Markt</div><div class="card-sub" id="mkIntSub"></div></div><div class="mk-chips" id="mkChips"></div></div>
     <div class="grid2" style="margin-bottom:14px">
@@ -1085,6 +1095,41 @@ function renderMkQuality(wIdx,lbl){
   charts.mkQualLine=mkChart('mkQualLine',document.getElementById('mkQualLine'),{type:'line',data:{labels:lbl,datasets:MK_QUALITY.map(m=>({label:m,data:wIdx.map(k=>all[k]?Math.round(q[m][k]/all[k]*1000)/10:0),borderColor:MK_QCOL[m],backgroundColor:'transparent',pointRadius:1.5,borderWidth:2,tension:0.3}))},
     options:baseOpts({interaction:{mode:'index',intersect:false},plugins:Object.assign({},baseOpts().plugins,{tooltip:Object.assign({},baseOpts().plugins.tooltip,{callbacks:{label:c=>' '+c.dataset.label+': '+c.parsed.y.toFixed(1)+' %'}})}),
       scales:{x:baseOpts().scales.x,y:Object.assign({},baseOpts().scales.y,{beginAtZero:true,ticks:Object.assign({},baseOpts().scales.y.ticks,{callback:v=>v+'%'})})}})});}
+
+/* ═══ FUSIONC-MIGRATION ═══ */
+function renderFusionC(wIdx,lbl,miw,mw){
+  var F=factsIdx(),G=['Kabel','Unity','Fusionc'];
+  var serie=m=>wIdx.map(k=>mw[m].inv[k]);
+  var kab=serie('Kabel'),uni=serie('Unity'),fc=serie('Fusionc'),grp=wIdx.map((k,j)=>kab[j]+uni[j]+fc[j]);
+  var share=grp.map((g,j)=>g?Math.round(fc[j]/g*10000)/100:0);
+  var first=null;for(var k=0;k<F.w.length;k++){if(mw.Fusionc.inv[k]>0){first=F.w[k];break;}}
+  // Intent-Vergleich im gewählten Zeitraum
+  var sum=(a)=>wIdx.reduce((s,k)=>s+a[k],0),rows=[];
+  Object.keys(miw).forEach(key=>{var p=key.split('|');if(p[0]!=='Fusionc')return;var i=p[1],a=miw[key],fi=sum(a.inv),fcn=sum(a.con);if(!fi)return;
+    var ki=0,kc=0;['Kabel','Unity'].forEach(m=>{var b=miw[m+'|'+i];if(b){ki+=sum(b.inv);kc+=sum(b.con);}});
+    rows.push({i,fi,fcr:cr1(fcn,fi),kcr:ki>=50?cr1(kc,ki):null});});
+  rows.sort((a,b)=>b.fi-a.fi);
+  var fcInv=sum(mw.Fusionc.inv),fcCon=sum(mw.Fusionc.con),kuInv=sum(mw.Kabel.inv)+sum(mw.Unity.inv),kuCon=sum(mw.Kabel.con)+sum(mw.Unity.con);
+  var lastShare=share.length?share[share.length-1]:0;
+  document.getElementById('fcKpis').innerHTML='<div><b>'+(first?'KW'+first.split('-')[1]:'—')+'</b><span>erste FusionC-Kontakte</span></div>'
+    +'<div><b>'+lastShare.toFixed(2)+' %</b><span>FusionC-Anteil in KW'+(F.w[wIdx[wIdx.length-1]]||'').split('-')[1]+'</span></div>'
+    +'<div><b>'+(fcInv?cr1(fcCon,fcInv).toFixed(1)+' %':'—')+' <span style="font-size:13px;color:var(--tmid);font-weight:500">vs. '+(kuInv?cr1(kuCon,kuInv).toFixed(1)+' %':'—')+'</span></b><span>CR FusionC vs. Kabel + Unity'+(fcInv&&fcInv<1000?' · erst '+fcInv+' Kontakte':'')+'</span></div>';
+  charts.fcVol=mkChart('fcVol',document.getElementById('fcVol'),{type:'line',data:{labels:lbl,datasets:[
+      {label:'Kabel',data:kab,borderColor:MK_COL.Kabel,backgroundColor:'transparent',pointRadius:1.5,borderWidth:2,tension:0.3},
+      {label:'Unity',data:uni,borderColor:MK_COL.Unity,backgroundColor:'transparent',pointRadius:1.5,borderWidth:2,tension:0.3},
+      {label:'FusionC',data:fc,borderColor:MK_COL.Fusionc,backgroundColor:MK_COL.Fusionc+'22',pointRadius:1.5,borderWidth:2,tension:0.3,fill:true},
+      {label:'Summe',data:grp,borderColor:'#9aa3bd',backgroundColor:'transparent',borderDash:[6,4],pointRadius:0,borderWidth:2,tension:0.3}]},
+    options:baseOpts({interaction:{mode:'index',intersect:false},plugins:Object.assign({},baseOpts().plugins,{tooltip:Object.assign({},baseOpts().plugins.tooltip,{callbacks:{label:c=>' '+c.dataset.label+': '+Math.round(c.parsed.y).toLocaleString('de-DE')}})}),
+      scales:{x:baseOpts().scales.x,y:Object.assign({},baseOpts().scales.y,{beginAtZero:true,ticks:Object.assign({},baseOpts().scales.y.ticks,{callback:v=>(v/1000).toFixed(0)+'K'})})}})});
+  charts.fcShare=mkChart('fcShare',document.getElementById('fcShare'),{type:'bar',data:{labels:lbl,datasets:[{label:'FusionC-Anteil',data:share,backgroundColor:MK_COL.Fusionc+'cc',borderRadius:4}]},
+    options:baseOpts({plugins:Object.assign({},baseOpts().plugins,{legend:{display:false},tooltip:Object.assign({},baseOpts().plugins.tooltip,{callbacks:{label:c=>' '+c.parsed.y.toFixed(2)+' % ('+fc[c.dataIndex]+' von '+grp[c.dataIndex].toLocaleString('de-DE')+')'}})}),
+      scales:{x:baseOpts().scales.x,y:Object.assign({},baseOpts().scales.y,{beginAtZero:true,suggestedMax:1,ticks:Object.assign({},baseOpts().scales.y.ticks,{callback:v=>v+'%'})})}})});
+  document.getElementById('fcBody').innerHTML=rows.length?rows.map(r=>{var small=r.fi<20,d=(r.fcr!==null&&r.kcr!==null)?r.fcr-r.kcr:null;
+    return'<tr'+(small?' style="opacity:.55"':'')+'><td class="name-cell"><span style="cursor:pointer" data-i="'+r.i+'" onclick="openDetail(this.dataset.i)">'+r.i.replace(/_/g,' ')+'</span></td><td>'+r.fi+(small?' <span style="color:var(--tlo)">(zu wenig)</span>':'')+'</td>'
+      +'<td class="'+crCls(r.fcr)+'">'+r.fcr.toFixed(1)+'%</td><td>'+(r.kcr!==null?r.kcr.toFixed(1)+'%':'—')+'</td><td>'+(small?'<span class="pill pill-flat">—</span>':deltaPill(d,'PP'))+'</td></tr>';}).join('')
+    :'<tr><td colspan="5" style="text-align:center;color:var(--tlo)">Im gewählten Zeitraum keine FusionC-Kontakte.</td></tr>';
+  document.getElementById('fcNote').textContent='Intents mit weniger als 20 FusionC-Kontakten sind ausgegraut, ihre Differenz ist noch nicht aussagekräftig.'
+    +(fcInv&&fcInv<1000?' Insgesamt hat FusionC im Zeitraum erst '+fcInv+' Kontakte – die CR-Werte schwanken entsprechend stark.':'');}
 
 /* ═══ CLUSTERING ═══ */
 function renderCluster(){

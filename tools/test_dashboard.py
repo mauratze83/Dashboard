@@ -495,6 +495,9 @@ if FACTS and DATA:
             _ci[FACTS['ch'][ci]] = _ci.get(FACTS['ch'][ci], 0) + v
     check('FACTS (main channels, no noise) per channel equals DATA.ch_totals', all(_ci.get(c, 0) == DATA['ch_totals'][c]['inv'] for c in DATA['channels']))
     check('all six main markets present in FACTS', all(m in FACTS['m'] for m in ['Mobilfunk', 'Dsl', 'Kabel', 'Unity', 'Callya', 'Fusionc']))
+check('FusionC migration monitor present and called from renderMaerkte',
+      'id="fcCard"' in html and 'function renderFusionC(' in html and 'renderFusionC(wIdx,lbl,miw,mw)' in html
+      and "mkChart('fcVol'" in html and "mkChart('fcShare'" in html)
 check('Märkte tab wired (nav, page, renderMaerkte in reRender and showPage)',
       "showPage('maerkte',this)" in html and 'id="page-maerkte"' in html and 'function renderMaerkte(' in html
       and "if(id==='maerkte'){renderMaerkte();markTabRendered('maerkte');}" in html and "if(id==='maerkte')renderMaerkte();" in html)
