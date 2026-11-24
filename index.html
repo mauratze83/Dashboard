@@ -420,6 +420,13 @@ body.drag-active::after{content:'CSV hier ablegen';position:fixed;top:0;left:0;r
     <button class="btn" onclick="setWView('cr',this)">CR</button>
     <button class="btn" onclick="setWView('warn',this)">⚠ Auffällig</button>
   </div>
+  <div class="card" id="mixCard">
+    <div class="card-head"><div><div class="card-title">Warum hat sich die CR bewegt?</div><div class="card-sub" id="mixSub">Zerlegung der CR-Veränderung in Mix-Effekt und Leistungsänderung · Segmente: Markt × Kanal</div></div></div>
+    <div class="mk-qual" id="mixKpis"></div>
+    <div id="mixText" style="font-size:13px;line-height:1.6;color:var(--thi);margin-bottom:12px"></div>
+    <div class="chart-wrap h280"><canvas id="mixChart"></canvas></div>
+    <div class="mk-note"><b>Mix-Effekt:</b> Die CR ändert sich, weil sich die Anteile verschieben, z. B. mehr Kontakte aus Kanälen oder Märkten mit niedriger CR. <b>Leistungsänderung:</b> Die CR innerhalb der Segmente ändert sich, der Bot wird also besser oder schlechter. Beide Teile ergeben zusammen genau die Veränderung der Gesamt-CR.</div>
+  </div>
   <div class="grid2">
     <div class="card"><div class="card-head"><div class="card-title">Volumen-Shifts Top 12</div></div><div class="chart-wrap h280"><canvas id="wowVolChart"></canvas></div></div>
     <div class="card"><div class="card-head"><div class="card-title">CR-Shifts Top 12</div></div><div class="chart-wrap h280"><canvas id="wowCrChart"></canvas></div></div>
@@ -1131,6 +1138,47 @@ function renderFusionC(wIdx,lbl,miw,mw){
   document.getElementById('fcNote').textContent='Intents mit weniger als 20 FusionC-Kontakten sind ausgegraut, ihre Differenz ist noch nicht aussagekräftig.'
     +(fcInv&&fcInv<1000?' Insgesamt hat FusionC im Zeitraum erst '+fcInv+' Kontakte – die CR-Werte schwanken entsprechend stark.':'');}
 
+/* ═══ CR-ZERLEGUNG (MIX VS. LEISTUNG) ═══ */
+function crDecompose(ia,ib){
+  var seg={};
+  factsScan({mainCh:false,noNoise:false,markets:null},function(wi,ch,m,i,inv,con){
+    if(wi!==ia&&wi!==ib)return;
+    var g=MK_MAIN.indexOf(m)>=0?mkLabel(m):'Ohne Markt',k=g+' · '+ch,s=seg[k]||(seg[k]=[0,0,0,0]);
+    if(wi===ia){s[0]+=inv;s[1]+=con;}else{s[2]+=inv;s[3]+=con;}});
+  var T0=0,C0=0,T1=0,C1=0;Object.values(seg).forEach(s=>{T0+=s[0];C0+=s[1];T1+=s[2];C1+=s[3];});
+  if(!T0||!T1)return null;
+  var rows=Object.entries(seg).map(([k,s])=>{
+    var s0=s[0]/T0,s1=s[2]/T1,r0=s[0]?s[1]/s[0]*100:null,r1=s[2]?s[3]/s[2]*100:null;
+    if(r0===null)r0=r1;if(r1===null)r1=r0;
+    return{k,mix:(s1-s0)*(r0+r1)/2,perf:(r1-r0)*(s0+s1)/2,s0,s1,r0,r1,inv0:s[0],inv1:s[2]};});
+  var mix=rows.reduce((a,r)=>a+r.mix,0),perf=rows.reduce((a,r)=>a+r.perf,0);
+  return{cr0:C0/T0*100,cr1:C1/T1*100,mix,perf,rows};}
+function renderMix(){
+  var F=factsIdx();if(!F||!document.getElementById('mixCard'))return;
+  var a=(document.getElementById('wowWeekA')||{}).value||WOW_DATA.prev,b=(document.getElementById('wowWeekB')||{}).value||WOW_DATA.last;
+  var ia=F.w.indexOf(a),ib=F.w.indexOf(b),R=(ia>=0&&ib>=0&&ia!==ib)?crDecompose(ia,ib):null;
+  if(!R){document.getElementById('mixKpis').innerHTML='';document.getElementById('mixText').textContent='Für diesen Vergleich liegen keine Marktdaten vor.';return;}
+  var kA='KW'+a.split('-')[1],kB='KW'+b.split('-')[1],d=R.cr1-R.cr0,f=v=>(v>=0?'+':'−')+Math.abs(v).toFixed(2)+' PP';
+  document.getElementById('mixSub').textContent=kA+' → '+kB+' · Zerlegung der CR-Veränderung in Mix-Effekt und Leistungsänderung · Segmente: Markt × Kanal';
+  var col=v=>Math.abs(v)<0.05?'var(--thi)':v>0?'var(--green)':'var(--red)';
+  document.getElementById('mixKpis').innerHTML='<div><b style="color:'+col(d)+'">'+f(d)+'</b><span>CR gesamt ('+R.cr0.toFixed(1)+' % → '+R.cr1.toFixed(1)+' %)</span></div>'
+    +'<div><b style="color:'+col(R.mix)+'">'+f(R.mix)+'</b><span>davon Mix-Effekt</span></div>'
+    +'<div><b style="color:'+col(R.perf)+'">'+f(R.perf)+'</b><span>davon Leistungsänderung</span></div>';
+  var byMix=R.rows.slice().sort((x,y)=>Math.abs(y.mix)-Math.abs(x.mix)),byPerf=R.rows.slice().sort((x,y)=>Math.abs(y.perf)-Math.abs(x.perf));
+  var mTop=byMix[0],pTop=byPerf.filter(r=>Math.abs(r.perf)>=0.05).slice(0,2);
+  var dom=Math.abs(R.mix)>Math.abs(R.perf)?'überwiegend durch den veränderten Mix':'überwiegend durch eine echte Leistungsänderung';
+  var txt=Math.abs(d)<0.1?'Die Gesamt-CR ist praktisch unverändert. ':'Die CR hat sich um '+f(d)+' verändert, '+dom+'. ';
+  if(mTop&&Math.abs(mTop.mix)>=0.05)txt+='Größter Mix-Beitrag: <b>'+mTop.k+'</b> (Anteil '+(mTop.s0*100).toFixed(1)+' % → '+(mTop.s1*100).toFixed(1)+' %, '+f(mTop.mix)+'). ';
+  if(pTop.length)txt+='Größte Leistungsbeiträge: '+pTop.map(r=>'<b>'+r.k+'</b> (CR '+r.r0.toFixed(1)+' % → '+r.r1.toFixed(1)+' %, '+f(r.perf)+')').join(', ')+'.';
+  document.getElementById('mixText').innerHTML=txt;
+  var top=R.rows.slice().sort((x,y)=>(Math.abs(y.mix)+Math.abs(y.perf))-(Math.abs(x.mix)+Math.abs(x.perf))).slice(0,10);
+  charts.mixChart=mkChart('mixChart',document.getElementById('mixChart'),{type:'bar',data:{labels:top.map(r=>r.k),datasets:[
+      {label:'Mix-Effekt',data:top.map(r=>Math.round(r.mix*100)/100),backgroundColor:'#7a84a0cc',borderRadius:4,stack:'s'},
+      {label:'Leistungsänderung',data:top.map(r=>Math.round(r.perf*100)/100),backgroundColor:top.map(r=>r.perf>=0?G+'cc':R_COL+'cc'),borderRadius:4,stack:'s'}]},
+    options:baseOpts({indexAxis:'y',interaction:{mode:'index',intersect:false},plugins:Object.assign({},baseOpts().plugins,{tooltip:Object.assign({},baseOpts().plugins.tooltip,{callbacks:{label:c=>' '+c.dataset.label+': '+(c.parsed.x>=0?'+':'')+c.parsed.x.toFixed(2)+' PP'}})}),
+      scales:{x:Object.assign({},baseOpts().scales.x,{stacked:true,ticks:Object.assign({},baseOpts().scales.x.ticks,{callback:v=>(v>0?'+':'')+(Math.round(v*10)/10)+' PP'})}),y:Object.assign({},baseOpts().scales.y,{stacked:true,ticks:Object.assign({},baseOpts().scales.y.ticks,{autoSkip:false})})}})});}
+var R_COL=R;
+
 /* ═══ CLUSTERING ═══ */
 function renderCluster(){
   var fd=getFD(),grps={};
@@ -1293,6 +1341,7 @@ function getSignal(r){
   return{lbl:'—',cls:'pill-flat'};}
 
 function renderWow(){
+  renderMix();
   var vt=parseFloat((document.getElementById('wowVolT')||{}).value||0);
   var ct=parseFloat((document.getElementById('wowCrT')||{}).value||0);
   var wd=_wowDeduped;

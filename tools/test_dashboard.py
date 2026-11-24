@@ -506,6 +506,7 @@ if DAILY:
                if (mm['dev'] > 0) != (t['dev'] > 0)]
     check('market attribution never contradicts the intent driver direction', not _bad_mk, str(_bad_mk[:3]))
 check('Anomalien tab shows market attribution of drivers', 'ti.mk.map(x=>x.m)' in html and "' in '+ti.m" in html)
+check('CR decomposition (mix vs. performance) card in WoW tab, rendered from renderWow', 'id="mixCard"' in html and 'function crDecompose(' in html and re.search(r'function renderWow\(\)\{\s*renderMix\(\);', html) is not None)
 check('Märkte tab wired (nav, page, renderMaerkte in reRender and showPage)',
       "showPage('maerkte',this)" in html and 'id="page-maerkte"' in html and 'function renderMaerkte(' in html
       and "if(id==='maerkte'){renderMaerkte();markTabRendered('maerkte');}" in html and "if(id==='maerkte')renderMaerkte();" in html)
