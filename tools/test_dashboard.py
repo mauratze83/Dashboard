@@ -498,6 +498,14 @@ if FACTS and DATA:
 check('FusionC migration monitor present and called from renderMaerkte',
       'id="fcCard"' in html and 'function renderFusionC(' in html and 'renderFusionC(wIdx,lbl,miw,mw)' in html
       and "mkChart('fcVol'" in html and "mkChart('fcShare'" in html)
+if DAILY:
+    _an = DAILY.get('anomalies', [])
+    check('anomaly drivers carry market attribution (mk) or are market×intent drivers (m) on most days',
+          sum(1 for x in _an if any(t.get('mk') or t.get('m') for t in x.get('top_intents', []))) >= 0.7 * max(1, len(_an)))
+    _bad_mk = [x['d'] for x in _an for t in x.get('top_intents', []) for mm in t.get('mk', [])
+               if (mm['dev'] > 0) != (t['dev'] > 0)]
+    check('market attribution never contradicts the intent driver direction', not _bad_mk, str(_bad_mk[:3]))
+check('Anomalien tab shows market attribution of drivers', 'ti.mk.map(x=>x.m)' in html and "' in '+ti.m" in html)
 check('Märkte tab wired (nav, page, renderMaerkte in reRender and showPage)',
       "showPage('maerkte',this)" in html and 'id="page-maerkte"' in html and 'function renderMaerkte(' in html
       and "if(id==='maerkte'){renderMaerkte();markTabRendered('maerkte');}" in html and "if(id==='maerkte')renderMaerkte();" in html)

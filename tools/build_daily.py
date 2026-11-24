@@ -261,6 +261,31 @@ for row in clean_rows:
     di_inv[row['intent']][row['d']] += row['inv']
     di_con[row['intent']][row['d']] += row['con']
 
+# Dasselbe je Hauptmarkt × Intent (nur Webchat/Appchat/WhatsApp), um Treiber einem Markt zuzuordnen
+MAIN_MARKETS = ['Mobilfunk', 'Dsl', 'Kabel', 'Unity', 'Callya', 'Fusionc']
+MK_LABEL = {'Mobilfunk': 'Mobilfunk', 'Dsl': 'DSL', 'Kabel': 'Kabel', 'Unity': 'Unity', 'Callya': 'CallYa', 'Fusionc': 'FusionC'}
+dmi_inv = defaultdict(lambda: defaultdict(int))
+dmi_con = defaultdict(lambda: defaultdict(int))
+for row in clean_rows:
+    if row.get('mk') in MAIN_MARKETS and row['ch'] in MAIN_CH:
+        dmi_inv[(row['mk'], row['intent'])][row['d']] += row['inv']
+        dmi_con[(row['mk'], row['intent'])][row['d']] += row['con']
+
+
+def series_dev(inv_s, con_s, d, hist_days, min_day, min_hist):
+    """CR-Abweichung eines Tages gegenüber den gleichen Wochentagen davor; None, wenn zu wenig Volumen."""
+    day_inv = inv_s.get(d, 0)
+    if day_inv < min_day:
+        return None
+    hi = sum(inv_s.get(x, 0) for x in hist_days)
+    if hi < min_hist:
+        return None
+    hc = sum(con_s.get(x, 0) for x in hist_days)
+    day_cr = con_s.get(d, 0) / day_inv * 100
+    base = hc / hi * 100
+    return {'inv': day_inv, 'cr': round(day_cr, 1), 'baseline_cr': round(base, 1), 'dev': round(day_cr - base, 1),
+            'vol_dev': day_inv - hi / max(1, len(hist_days))}
+
 # Anomaly detection: rolling baseline (mean + stdev) over the SAME weekday only (e.g. a Monday
 # is compared against the last WEEKDAY_WINDOW Mondays, not against a 14-calendar-day window that
 # mixes in weekends). Weekday volume/CR behaves structurally differently from weekend volume/CR,
@@ -356,6 +381,33 @@ for i, d in enumerate(days):
                     continue
             top_intents.append({'i': intent, 'inv': day_inv, 'cr': day_cr, 'baseline_cr': round(baseline_cr,1), 'dev': round(dev,1)})
         top_intents.sort(key=lambda x: (-abs(x['dev']), x['i']))
+
+        def _dir_ok(r):
+            if cr_direction is not None and (r['dev'] > 0) != (cr_direction > 0):
+                return False
+            if inv_direction is not None and cr_direction is None and (r['vol_dev'] > 0) != (inv_direction > 0):
+                return False
+            return True
+
+        # Markt-Zuordnung: in welchen Hauptmärkten steckt die Abweichung des Intents?
+        for ti in top_intents:
+            mk = []
+            for m in MAIN_MARKETS:
+                r = series_dev(dmi_inv[(m, ti['i'])], dmi_con[(m, ti['i'])], d, same_wd_days, 10, 30)
+                if r and abs(r['dev']) >= 10 and _dir_ok(r) and (r['dev'] > 0) == (ti['dev'] > 0):
+                    mk.append({'m': MK_LABEL[m], 'dev': r['dev'], 'inv': r['inv']})
+            mk.sort(key=lambda x: (-abs(x['dev']) * x['inv'], x['m']))
+            if mk:
+                ti['mk'] = mk[:3]
+        # Keine Intent-Treiber? Dann direkt auf Markt × Intent-Ebene suchen
+        if not top_intents:
+            cand = []
+            for (m, intent), inv_s in dmi_inv.items():
+                r = series_dev(inv_s, dmi_con[(m, intent)], d, same_wd_days, 20, 50)
+                if r and abs(r['dev']) >= 15 and _dir_ok(r):
+                    cand.append({'i': intent, 'm': MK_LABEL[m], 'inv': r['inv'], 'cr': r['cr'], 'baseline_cr': r['baseline_cr'], 'dev': r['dev']})
+            cand.sort(key=lambda x: (-abs(x['dev']) * x['inv'], x['i'], x['m']))
+            top_intents = cand[:5]
 
         # Feiertage/Schulferien: bundesweite Feiertage und Zeiten mit vielen gleichzeitigen
         # Schulferien fuehren erfahrungsgemaess zu WENIGER Volumen (negativer Impact auf Involved).
