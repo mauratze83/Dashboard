@@ -31,6 +31,12 @@ python3 -I "$DIR/import_data.py" "$CSV"
 mkdir -p "$WORK/w" "$WORK/d"
 python3 "$DIR/build_weekly.py" "$ROOT/data/weekly.csv" "$WORK/w" > "$WORK/build.log"
 python3 "$DIR/build_daily.py" "$ROOT/data/daily" "$WORK/d" >> "$WORK/build.log"
+# Tagesanomalien zusätzlich je Hauptmarkt (für den globalen Marktfilter)
+for M in Mobilfunk Dsl Kabel Unity Callya Fusionc; do
+  mkdir -p "$WORK/dm/$M"
+  MARKET_FILTER="$M" python3 "$DIR/build_daily.py" "$ROOT/data/daily" "$WORK/dm/$M" >> "$WORK/build.log"
+done
+python3 "$DIR/merge_daily_markets.py" "$WORK/d/DAILY_DATA.json" "$WORK/dm" >> "$WORK/build.log"
 cp "$WORK/d/DAILY_DATA.json" "$WORK/w/"
 python3 "$DIR/build_facts.py" "$ROOT/data/weekly.csv" "$WORK/w" >> "$WORK/build.log"
 if ! python3 "$DIR/inject.py" "$HTML" "$WORK/w" > "$WORK/inject.log" 2>&1; then

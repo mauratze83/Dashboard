@@ -507,6 +507,20 @@ if DAILY:
     check('market attribution never contradicts the intent driver direction', not _bad_mk, str(_bad_mk[:3]))
 check('Anomalien tab shows market attribution of drivers', 'ti.mk.map(x=>x.m)' in html and "' in '+ti.m" in html)
 check('CR decomposition (mix vs. performance) card in WoW tab, rendered from renderWow', 'id="mixCard"' in html and 'function crDecompose(' in html and re.search(r'function renderWow\(\)\{\s*renderMix\(\);', html) is not None)
+check('global market filter: select in time filter bar, applyMarket, snapshot of original data',
+      'id="mkFilter"' in html and 'function applyMarket(' in html and 'function buildDataFrom(' in html and '_snapshotAll();' in html)
+if DAILY:
+    _bm = DAILY.get('by_market') or {}
+    check('DAILY_DATA.by_market has daily anomalies for all six main markets',
+          all(m in _bm and 'anomalies' in _bm[m] and 'daily_totals' in _bm[m] for m in ['Mobilfunk','Dsl','Kabel','Unity','Callya','Fusionc']))
+    if _bm and FACTS:
+        # Tageswerte je Markt müssen zu den Wochenwerten des Markts (Hauptkanäle) passen
+        _mi = FACTS['m'].index('Unity'); _main = {FACTS['ch'].index(c) for c in ['Webchat','Appchat','WhatsApp']}
+        _wf = sum(v for m_, c_, v in zip(FACTS['r'][2], FACTS['r'][1], FACTS['r'][4]) if m_ == _mi and c_ in _main)
+        check('by_market Unity daily totals add up to FACTS Unity (main channels)',
+              sum(d['inv'] for d in _bm.get('Unity', {}).get('daily_totals', [])) == _wf)
+check('getFD computes exact intent values from FACTS for a partial time range', 'exakt aus der Faktentabelle für die gewählten Wochen' in html)
+check('rebuildWow uses exact FACTS values and updates the week labels', 'WOW_DATA.prev=wA;WOW_DATA.last=wB;buildWowDeduped(res.wow)' in html)
 check('Märkte tab wired (nav, page, renderMaerkte in reRender and showPage)',
       "showPage('maerkte',this)" in html and 'id="page-maerkte"' in html and 'function renderMaerkte(' in html
       and "if(id==='maerkte'){renderMaerkte();markTabRendered('maerkte');}" in html and "if(id==='maerkte')renderMaerkte();" in html)

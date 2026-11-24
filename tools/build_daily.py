@@ -47,8 +47,14 @@ for _fp in _files:
             'cs': parse_de_num(row['€CS'])
         })
 
-weeks = sorted(set(r['w'] for r in rows))
-days = sorted(set(r['d'] for r in rows))
+# Optional: nur ein Markt (für den globalen Marktfilter). Dann zählen – wie in allen Marktanalysen –
+# nur Webchat, Appchat und WhatsApp. Die Tagesliste bleibt vollständig, damit die Wochentags-Baseline stimmt.
+MARKET_FILTER = os.environ.get('MARKET_FILTER', '').strip()
+_all_days = sorted(set(r['d'] for r in rows))
+if MARKET_FILTER:
+    rows = [r for r in rows if r['mk'] == MARKET_FILTER and r['ch'] in ('Webchat', 'Appchat', 'WhatsApp')]
+weeks = sorted(set(r['w'] for r in rows)) if not MARKET_FILTER else sorted({iso_week_label(d) for d in _all_days})
+days = _all_days
 print('weeks:', weeks[0], '..', weeks[-1], 'count', len(weeks))
 print('days:', days[0], '..', days[-1], 'count', len(days))
 

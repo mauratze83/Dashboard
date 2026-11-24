@@ -28,6 +28,12 @@ Lücken in den Tagesdaten. Jeder Import zeigt die Marktanteile der Datei.
 ## Skripte
 - `build_weekly.py` / `build_daily.py` – Bestand → `DATA`, `WOW_DATA` / `DAILY_DATA`
 - `build_facts.py` – `weekly.csv` → `FACTS` (Woche × Kanal × Markt × Intent) für Märkte-Tab und Marktfilter
+- `merge_daily_markets.py` – hängt die je Markt berechneten Tagesanomalien an `DAILY_DATA` (`by_market`); `update.sh` ruft dafür `build_daily.py` je Hauptmarkt mit `MARKET_FILTER=<Markt>` auf
 - `inject.py` – positionsgenaue JSON-Ersetzung in `index.html`
 - `test_dashboard.py` – Regressionstests; schlägt einer fehl, setzt `update.sh` Dashboard und Bestand zurück
 - `holidays.py` – Feiertage und Schulferien für die Anomalien, gepflegt bis Ostern 2027
+
+## Marktfilter im Dashboard
+Der Filter „Markt“ in der Zeitleiste rechnet alle Tabs im Browser aus `FACTS` auf einen Markt um (nur Webchat, Appchat,
+WhatsApp). „Alle Märkte“ zeigt die eingebetteten Originaldaten. Nach einem CSV-Upload direkt im Browser ist der
+Marktfilter deaktiviert, weil `FACTS` dann nicht mehr zu den Daten passt.
